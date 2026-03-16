@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient, type Batch, type AttendanceLog } from '@/lib/supabase'
+import { friendlyError } from '@/lib/errors'
 import Sidebar from '@/components/Sidebar'
 import { LogIn, LogOut, AlertCircle, Loader2, ChevronDown } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -41,7 +42,7 @@ export default function AttendancePage() {
     const { data, error } = await supabase.from('attendance_logs')
       .upsert({ student_id: studentId, log_date: selectedDate, check_in_time: new Date().toISOString(), status: 'present' }, { onConflict: 'student_id,log_date' })
       .select().single()
-    if (error) { toast.error('Check-in failed'); setSaving(null); return }
+    if (error) { toast.error(friendlyError(error)); setSaving(null); return }
     setRows(prev => prev.map(r => r.student.id === studentId ? { ...r, log: data } : r))
     toast.success('Checked in ✓'); setSaving(null)
   }
@@ -50,7 +51,7 @@ export default function AttendancePage() {
     setSaving(studentId)
     const { data, error } = await supabase.from('attendance_logs')
       .update({ check_out_time: new Date().toISOString() }).eq('id', logId).select().single()
-    if (error) { toast.error('Check-out failed'); setSaving(null); return }
+    if (error) { toast.error(friendlyError(error)); setSaving(null); return }
     setRows(prev => prev.map(r => r.student.id === studentId ? { ...r, log: data } : r))
     toast.success('Checked out ✓'); setSaving(null)
   }
@@ -60,7 +61,7 @@ export default function AttendancePage() {
     const { data, error } = await supabase.from('attendance_logs')
       .upsert({ student_id: studentId, log_date: selectedDate, status: 'absent' }, { onConflict: 'student_id,log_date' })
       .select().single()
-    if (error) { toast.error('Failed'); setSaving(null); return }
+    if (error) { toast.error(friendlyError(error)); setSaving(null); return }
     setRows(prev => prev.map(r => r.student.id === studentId ? { ...r, log: data } : r))
     toast.success('Marked absent'); setSaving(null)
   }

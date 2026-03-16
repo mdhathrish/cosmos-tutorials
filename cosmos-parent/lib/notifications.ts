@@ -1,18 +1,27 @@
 // lib/notifications.ts
-import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import { Platform } from 'react-native'
 import { supabase } from './supabase'
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-})
+let Notifications: any = null
+try {
+  Notifications = require('expo-notifications')
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  })
+} catch (e) {
+  console.log('Push notifications not supported in Expo Go on this SDK version.')
+}
 
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
+  if (!Notifications) return null
+  
   if (!Device.isDevice) {
     console.log('Push notifications only work on physical devices.')
     return null
@@ -50,7 +59,7 @@ export function buildAttendanceNotification(
   studentName: string,
   type: 'check_in' | 'check_out',
   time: string
-): Notifications.NotificationContentInput {
+): any {
   const timeStr = new Date(time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
   return {
     title: type === 'check_in'

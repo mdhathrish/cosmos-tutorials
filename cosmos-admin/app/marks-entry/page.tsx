@@ -3,6 +3,7 @@
 'use client'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient, type Batch, type Test, type TestQuestion, type Student } from '@/lib/supabase'
+import { friendlyError } from '@/lib/errors'
 import Sidebar from '@/components/Sidebar'
 import { Plus, Save, ChevronDown, Loader2, CheckCircle, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -52,17 +53,22 @@ export default function MarksEntryPage() {
     if (!selectedTest || !selectedBatch) return
     setLoadingStudents(true)
 
+    // Step 1: fetch questions + students in parallel
     Promise.all([
       supabase.from('test_questions').select('*, micro_tags(*)').eq('test_id', selectedTest).order('question_number'),
       supabase.from('students').select('*').eq('batch_id', selectedBatch).eq('is_active', true).order('full_name'),
-      supabase.from('student_scores').select('*').in('question_id',
-        // subquery approach: get all question IDs for this test
-        supabase.from('test_questions').select('id').eq('test_id', selectedTest) as any
-      ),
-    ]).then(([qRes, sRes, scoresRes]) => {
+    ]).then(async ([qRes, sRes]) => {
       const qs = qRes.data || []
       const ss = sRes.data || []
-      const existingScores = scoresRes.data || []
+
+      // Step 2: fetch existing scores using the actual question ID array
+      const questionIds = qs.map(q => q.id)
+      let existingScores: any[] = []
+      if (questionIds.length > 0) {
+        const { data: scoresData } = await supabase
+          .from('student_scores').select('*').in('question_id', questionIds)
+        existingScores = scoresData || []
+      }
 
       setQuestions(qs)
       setStudents(ss)
@@ -158,7 +164,7 @@ export default function MarksEntryPage() {
       .upsert(upsertData, { onConflict: 'student_id,question_id' })
 
     if (error) {
-      toast.error(`Save failed: ${error.message}`)
+      toast.error(friendlyError(error))
     } else {
       toast.success(`Saved ${upsertData.length} scores successfully!`)
       // Mark all as saved
@@ -371,8 +377,18 @@ function NewTestModal({ batches, selectedBatch, onClose, onCreated }: any) {
   const addQuestion = () => setQuestions(prev => [...prev, { question_number: prev.length + 1, max_marks: '', micro_tag_id: '' }])
 
   const handleSave = async () => {
+    // Validate before hitting DB
+    if (!form.batch_id) { toast.error('Please select a batch'); return }
+    if (!form.test_name.trim()) { toast.error('Please enter a test name'); return }
+    if (!form.test_date) { toast.error('Please select a test date'); return }
+    if (questions.some(q => !q.max_marks || !q.micro_tag_id)) {
+      toast.error('Please fill in marks and concept for every question'); return
+    }
+
     setSaving(true)
     const totalMarks = questions.reduce((s, q) => s + (parseInt(q.max_marks) || 0), 0)
+
+    if (totalMarks === 0) { toast.error('Total marks must be greater than 0'); setSaving(false); return }
 
     const { data: test, error: testErr } = await supabase.from('tests').insert({
       batch_id: form.batch_id,
@@ -381,7 +397,7 @@ function NewTestModal({ batches, selectedBatch, onClose, onCreated }: any) {
       total_marks: totalMarks,
     }).select().single()
 
-    if (testErr || !test) { toast.error('Failed to create test'); setSaving(false); return }
+    if (testErr || !test) { toast.error(testErr ? friendlyError(testErr) : 'Failed to create test. Try again.'); setSaving(false); return }
 
     const { error: qErr } = await supabase.from('test_questions').insert(
       questions.map(q => ({
@@ -392,7 +408,7 @@ function NewTestModal({ batches, selectedBatch, onClose, onCreated }: any) {
       }))
     )
 
-    if (qErr) { toast.error('Failed to save questions'); setSaving(false); return }
+    if (qErr) { toast.error(friendlyError(qErr)); setSaving(false); return }
 
     toast.success('Test created!')
     onCreated(test, questions)

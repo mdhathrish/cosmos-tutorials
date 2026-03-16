@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient, type Batch } from '@/lib/supabase'
+import { friendlyError } from '@/lib/errors'
 import Sidebar from '@/components/Sidebar'
 import { Plus, Loader2, Trash2, ChevronDown, BookOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -135,7 +136,7 @@ function HomeworkModal({ batches, onClose, onSaved }: any) {
             description: form.description || null,
             due_date: form.due_date,
         }).select().single()
-        if (error) { toast.error(error.message); setSaving(false); return }
+        if (error) { toast.error(friendlyError(error)); setSaving(false); return }
 
         // Auto-create pending submissions for all students in the batch
         const { data: students } = await supabase.from('students').select('id').eq('batch_id', form.batch_id).eq('is_active', true)

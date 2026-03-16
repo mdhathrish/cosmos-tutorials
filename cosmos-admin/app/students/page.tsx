@@ -2,6 +2,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient, type Student, type Batch } from '@/lib/supabase'
+import { friendlyError } from '@/lib/errors'
 import Sidebar from '@/components/Sidebar'
 import { Plus, Search, Loader2, UserPlus, Pencil, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -39,7 +40,7 @@ export default function StudentsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Deactivate this student?')) return
     const { error } = await supabase.from('students').update({ is_active: false }).eq('id', id)
-    if (error) { toast.error('Failed'); return }
+    if (error) { toast.error(friendlyError(error)); return }
     setStudents(prev => prev.filter(s => s.id !== id))
     toast.success('Student deactivated')
   }
@@ -136,6 +137,12 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
+    // Validate required fields
+    if (!form.full_name.trim()) { toast.error('Please enter the student name'); return }
+    if (!form.grade) { toast.error('Please select a grade'); return }
+    if (!form.batch_id) { toast.error('Please select a batch'); return }
+    if (!student && !form.parent_phone.trim()) { toast.error('Please enter parent phone number'); return }
+
     setSaving(true)
     if (student) {
       const { error } = await supabase.from('students').update({
@@ -143,17 +150,22 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
         grade: parseInt(String(form.grade)),
         batch_id: form.batch_id,
       }).eq('id', student.id)
-      if (error) { toast.error(error.message); setSaving(false); return }
+      if (error) { toast.error(friendlyError(error)); setSaving(false); return }
     } else {
+      // Format phone: ensure +91 prefix for Supabase Auth consistency
+      const formattedPhone = form.parent_phone.startsWith('+') 
+        ? form.parent_phone 
+        : `+91${form.parent_phone.replace(/\\s/g, '')}`
+
       // First create/find parent user by phone
       const { data: parentData, error: parentErr } = await supabase
-        .from('users').select('id').eq('phone', form.parent_phone).single()
+        .from('users').select('id').eq('phone', formattedPhone).single()
 
       let parentId = parentData?.id
       if (!parentId) {
         const { data: newParent, error: newParentErr } = await supabase
-          .from('users').insert({ role: 'parent', full_name: `Parent of ${form.full_name}`, phone: form.parent_phone }).select().single()
-        if (newParentErr) { toast.error('Parent creation failed: ' + newParentErr.message); setSaving(false); return }
+          .from('users').insert({ role: 'parent', full_name: `Parent of ${form.full_name}`, phone: formattedPhone }).select().single()
+        if (newParentErr) { toast.error(friendlyError(newParentErr)); setSaving(false); return }
         parentId = newParent.id
       }
 
@@ -163,7 +175,7 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
         batch_id: form.batch_id,
         parent_id: parentId,
       })
-      if (error) { toast.error(error.message); setSaving(false); return }
+      if (error) { toast.error(friendlyError(error)); setSaving(false); return }
     }
     toast.success(student ? 'Student updated!' : 'Student added!')
     onSaved()

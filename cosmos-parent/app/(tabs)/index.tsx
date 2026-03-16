@@ -6,7 +6,8 @@ import {
 } from 'react-native'
 import { supabase, type Student, type AttendanceLog } from '../../lib/supabase'
 import { Colors } from '../../constants/theme'
-import { registerForPushNotifications } from '../../lib/notifications'
+// Push notifications disabled in Expo Go SDK 54
+// import { registerForPushNotifications } from '../../lib/notifications'
 
 export default function HomeScreen() {
   const [student, setStudent] = useState<Student | null>(null)
@@ -19,58 +20,59 @@ export default function HomeScreen() {
   const today = new Date().toISOString().split('T')[0]
 
   const load = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-    // Get parent user record
-    const { data: parentUser } = await supabase
-      .from('users')
-      .select('id, full_name')
-      .eq('auth_id', user.id)
-      .single()
-
-    if (!parentUser) return
-    setUserName(parentUser.full_name)
-
-    // Register push token
-    await registerForPushNotifications(parentUser.id)
-
-    // Get student
-    const { data: studentData } = await supabase
-      .from('students')
-      .select('*, batches(batch_name, subject, timing_start, timing_end)')
-      .eq('parent_id', parentUser.id)
-      .eq('is_active', true)
-      .single()
-
-    if (studentData) {
-      setStudent(studentData)
-
-      // Today's attendance
-      const { data: todayAttendance } = await supabase
-        .from('attendance_logs')
-        .select('*')
-        .eq('student_id', studentData.id)
-        .eq('log_date', today)
+      // Get parent user record
+      const { data: parentUser } = await supabase
+        .from('users')
+        .select('id, full_name')
+        .eq('auth_id', user.id)
         .single()
 
-      setTodayLog(todayAttendance)
+      if (!parentUser) return
+      setUserName(parentUser.full_name)
 
-      // Recent 7 days
-      const weekAgo = new Date()
-      weekAgo.setDate(weekAgo.getDate() - 7)
-      const { data: recent } = await supabase
-        .from('attendance_logs')
-        .select('*')
-        .eq('student_id', studentData.id)
-        .gte('log_date', weekAgo.toISOString().split('T')[0])
-        .order('log_date', { ascending: false })
+      // Get student
+      const { data: studentData } = await supabase
+        .from('students')
+        .select('*, batches(batch_name, subject, timing_start, timing_end)')
+        .eq('parent_id', parentUser.id)
+        .eq('is_active', true)
+        .single()
 
-      setRecentLogs(recent || [])
+      if (studentData) {
+        setStudent(studentData)
+
+        // Today's attendance
+        const { data: todayAttendance } = await supabase
+          .from('attendance_logs')
+          .select('*')
+          .eq('student_id', studentData.id)
+          .eq('log_date', today)
+          .single()
+
+        setTodayLog(todayAttendance)
+
+        // Recent 7 days
+        const weekAgo = new Date()
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        const { data: recent } = await supabase
+          .from('attendance_logs')
+          .select('*')
+          .eq('student_id', studentData.id)
+          .gte('log_date', weekAgo.toISOString().split('T')[0])
+          .order('log_date', { ascending: false })
+
+        setRecentLogs(recent || [])
+      }
+    } catch (error) {
+      console.error('Error loading home data:', error)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
     }
-
-    setLoading(false)
-    setRefreshing(false)
   }
 
   useEffect(() => { load() }, [])

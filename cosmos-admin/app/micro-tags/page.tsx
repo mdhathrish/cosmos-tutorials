@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { friendlyError } from '@/lib/errors'
 import Sidebar from '@/components/Sidebar'
 import { Plus, Loader2, Trash2, Search, Tag } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -34,7 +35,7 @@ export default function MicroTagsPage() {
     const handleDelete = async (id: string) => {
         if (!confirm('Delete this concept tag? This will affect any questions linked to it.')) return
         const { error } = await supabase.from('micro_tags').delete().eq('id', id)
-        if (error) { toast.error('Cannot delete — tag is linked to questions'); return }
+        if (error) { toast.error('Cannot delete — this tag is linked to existing questions.'); return }
         setTags(prev => prev.filter(t => t.id !== id))
         toast.success('Tag deleted')
     }
@@ -142,7 +143,7 @@ function TagModal({ onClose, onSaved }: any) {
         if (!form.chapter || !form.concept_name) { toast.error('Fill all fields'); return }
         setSaving(true)
         const { error } = await supabase.from('micro_tags').insert(form)
-        if (error) { toast.error(error.message); setSaving(false); return }
+        if (error) { toast.error(friendlyError(error)); setSaving(false); return }
         toast.success('Tag created!')
         onSaved()
     }

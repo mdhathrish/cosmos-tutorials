@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { friendlyError } from '@/lib/errors'
 import { useRouter } from 'next/navigation'
 import { Loader2, Telescope } from 'lucide-react'
 
@@ -17,7 +18,7 @@ export default function LoginPage() {
         setLoading(true)
         setError('')
         const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) { setError(error.message); setLoading(false); return }
+        if (error) { setError(friendlyError(error)); setLoading(false); return }
         router.push('/dashboard')
     }
 

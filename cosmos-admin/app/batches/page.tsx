@@ -2,6 +2,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient, type Batch } from '@/lib/supabase'
+import { friendlyError } from '@/lib/errors'
 import Sidebar from '@/components/Sidebar'
 import { Plus, Loader2, Pencil, Trash2, Clock, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -36,7 +37,7 @@ export default function BatchesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Deactivate this batch?')) return
     const { error } = await supabase.from('batches').update({ is_active: false }).eq('id', id)
-    if (error) { toast.error('Failed'); return }
+    if (error) { toast.error(friendlyError(error)); return }
     setBatches(prev => prev.filter(b => b.id !== id))
     toast.success('Batch deactivated')
   }
@@ -155,13 +156,16 @@ function BatchModal({ batch, onClose, onSaved }: any) {
   }))
 
   const handleSave = async () => {
+    if (!form.batch_name.trim()) { toast.error('Please enter a batch name'); return }
+    if (!form.timing_start || !form.timing_end) { toast.error('Please set start and end times'); return }
+    if (form.days_of_week.length === 0) { toast.error('Please select at least one day'); return }
     setSaving(true)
     if (batch) {
       const { error } = await supabase.from('batches').update(form).eq('id', batch.id)
-      if (error) { toast.error(error.message); setSaving(false); return }
+      if (error) { toast.error(friendlyError(error)); setSaving(false); return }
     } else {
       const { error } = await supabase.from('batches').insert(form)
-      if (error) { toast.error(error.message); setSaving(false); return }
+      if (error) { toast.error(friendlyError(error)); setSaving(false); return }
     }
     toast.success(batch ? 'Batch updated!' : 'Batch created!')
     onSaved()
