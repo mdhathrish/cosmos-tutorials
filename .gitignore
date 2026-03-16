@@ -1,0 +1,47 @@
+# ============================================================
+# Cosmos Tutorials — Root .gitignore
+# ============================================================
+
+# --- Dependencies (NEVER commit these) ---
+node_modules/
+.expo/
+
+# --- Environment variables (NEVER commit these) ---
+.env
+.env.local
+.env.production
+.env.staging
+
+# --- Build output ---
+.next/
+dist/
+build/
+out/
+
+# --- Expo / EAS ---
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# --- Supabase local ---
+supabase/.temp/
+
+# --- OS files ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+*.log
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo

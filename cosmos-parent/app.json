@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Cosmos Tutorials",
+    "slug": "cosmos-parent",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "newArchEnabled": false,
+    "icon": "./assets/icon.png",
+    "scheme": "cosmos",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#08091A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.cosmostutorials.parent"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#08091A"
+      },
+      "package": "com.cosmostutorials.parent"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

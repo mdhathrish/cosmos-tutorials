@@ -1,0 +1,20 @@
+# cosmos-admin/.gitignore
+
+# Build output
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Environment variables (NEVER commit)
+.env.local
+.env.production
+.env.staging
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
