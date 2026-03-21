@@ -99,7 +99,7 @@ export default function PerformanceScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>🧠 Concept Heatmap</Text>
-        <Text style={styles.subtitle}>{studentName}'s micro-skill breakdown</Text>
+        <Text style={styles.subtitle}>{studentName}&apos;s micro-skill breakdown</Text>
       </View>
 
       {/* Overall score ring */}

@@ -8,20 +8,35 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
+    storage:            AsyncStorage,  // Persists session to phone storage
+    autoRefreshToken:   true,          // Refreshes token silently
+    persistSession:     true,          // Stays logged in after app close
     detectSessionInUrl: false,
   },
 })
 
-// ─── Types ───────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────
+export interface UserRecord {
+  id: string
+  auth_id: string
+  role: 'admin' | 'parent'
+  full_name: string
+  email: string | null
+  phone: string | null
+  push_token: string | null
+}
+
 export interface Student {
   id: string
   full_name: string
   grade: number
   batch_id: string
-  batches?: { batch_name: string; subject: string; timing_start: string; timing_end: string }
+  batches?: {
+    batch_name: string
+    subject: string
+    timing_start: string
+    timing_end: string
+  }
 }
 
 export interface AttendanceLog {
@@ -35,6 +50,7 @@ export interface AttendanceLog {
 
 export interface ConceptPerformance {
   micro_tag_id: string
+  student_id: string
   subject: string
   chapter: string
   concept_name: string
@@ -51,9 +67,10 @@ export interface HomeworkSubmission {
   student_id: string
   status: 'pending' | 'submitted' | 'graded'
   submitted_at: string | null
+  grade: string | null
   homework?: {
     title: string
-    description: string
+    description: string | null
     due_date: string
   }
 }

@@ -15,20 +15,29 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.cosmostutorials.parent"
+      "bundleIdentifier": "com.cosmostutorials.parent",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#08091A"
       },
-      "package": "com.cosmostutorials.parent"
+      "package": "com.cosmostutorials.parent",
+      "versionCode": 1
     },
     "plugins": [
       "expo-router"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6cc4cf70-c0d9-42fd-bcce-63e509868031"
+      }
+    },
+    "owner": "dhathrish"
   }
 }

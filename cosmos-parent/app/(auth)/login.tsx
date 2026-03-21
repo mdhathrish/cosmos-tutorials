@@ -1,4 +1,5 @@
 // app/(auth)/login.tsx
+// Email + Password login — free, no Twilio, session persists forever
 import { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
@@ -8,45 +9,40 @@ import { supabase } from '../../lib/supabase'
 import { Colors } from '../../constants/theme'
 
 export default function LoginScreen() {
-  const [phone, setPhone] = useState('')
-  const [otp, setOtp]   = useState('')
-  const [step, setStep] = useState<'phone' | 'otp'>('phone')
-  const [loading, setLoading] = useState(false)
+  const [email, setEmail]       = useState('')
+  const [password, setPassword] = useState('')
+  const [showPass, setShowPass] = useState(false)
+  const [loading, setLoading]   = useState(false)
 
-  const handleSendOtp = async () => {
-    if (!phone.trim()) { Alert.alert('Enter your phone number'); return }
+  const handleLogin = async () => {
+    if (!email.trim())    { Alert.alert('Please enter your email'); return }
+    if (!password.trim()) { Alert.alert('Please enter your password'); return }
+
     setLoading(true)
-
-    // Format phone: ensure +91 prefix
-    const formatted = phone.startsWith('+') ? phone : `+91${phone.replace(/\s/g, '')}`
-
-    const { error } = await supabase.auth.signInWithOtp({ phone: formatted })
-    if (error) {
-      Alert.alert('Error', error.message)
-    } else {
-      setStep('otp')
-    }
-    setLoading(false)
-  }
-
-  const handleVerifyOtp = async () => {
-    if (!otp.trim()) { Alert.alert('Enter the OTP'); return }
-    setLoading(true)
-    const formatted = phone.startsWith('+') ? phone : `+91${phone.replace(/\s/g, '')}`
-
-    const { error } = await supabase.auth.verifyOtp({
-      phone: formatted,
-      token: otp,
-      type: 'sms'
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
     })
-    if (error) Alert.alert('Invalid OTP', error.message)
-    setLoading(false)
+
+    if (error) {
+      if (error.message.includes('Invalid login')) {
+        Alert.alert('Login Failed', 'Incorrect email or password.\n\nContact your teacher to get your login details.')
+      } else {
+        Alert.alert('Error', error.message)
+      }
+      setLoading(false)
+    }
+    // On success — session auto-persists, _layout.tsx redirects to tabs
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {/* Logo area */}
+
+        {/* Logo */}
         <View style={styles.logoContainer}>
           <View style={styles.logoCircle}>
             <Text style={styles.logoEmoji}>🔭</Text>
@@ -57,86 +53,73 @@ export default function LoginScreen() {
 
         {/* Card */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>
-            {step === 'phone' ? 'Welcome Back' : 'Verify OTP'}
-          </Text>
+          <Text style={styles.cardTitle}>Welcome Back</Text>
           <Text style={styles.cardSubtitle}>
-            {step === 'phone'
-              ? 'Enter your registered phone number'
-              : `We sent a 6-digit code to ${phone}`}
+            Sign in with the email & password provided by your teacher
           </Text>
 
-          {step === 'phone' ? (
-            <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Phone Number</Text>
-                <View style={styles.phoneRow}>
-                  <View style={styles.countryCode}>
-                    <Text style={styles.countryCodeText}>🇮🇳 +91</Text>
-                  </View>
-                  <TextInput
-                    style={[styles.input, styles.phoneInput]}
-                    placeholder="98765 43210"
-                    placeholderTextColor={Colors.muted}
-                    keyboardType="phone-pad"
-                    value={phone}
-                    onChangeText={setPhone}
-                    maxLength={10}
-                    autoFocus
-                  />
-                </View>
-              </View>
+          {/* Email */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Email Address</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="parent@email.com"
+              placeholderTextColor={Colors.muted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={email}
+              onChangeText={setEmail}
+              autoFocus
+            />
+          </View>
 
+          {/* Password */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Password</Text>
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                placeholder="••••••••"
+                placeholderTextColor={Colors.muted}
+                secureTextEntry={!showPass}
+                value={password}
+                onChangeText={setPassword}
+                onSubmitEditing={handleLogin}
+                returnKeyType="done"
+              />
               <TouchableOpacity
-                style={[styles.btn, loading && styles.btnDisabled]}
-                onPress={handleSendOtp}
-                disabled={loading}
-                activeOpacity={0.85}
+                onPress={() => setShowPass(p => !p)}
+                style={styles.eyeBtn}
+                activeOpacity={0.7}
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.btnText}>Send OTP →</Text>
-                )}
+                <Text style={styles.eyeText}>{showPass ? '🙈' : '👁️'}</Text>
               </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>6-Digit OTP</Text>
-                <TextInput
-                  style={[styles.input, styles.otpInput]}
-                  placeholder="• • • • • •"
-                  placeholderTextColor={Colors.muted}
-                  keyboardType="number-pad"
-                  value={otp}
-                  onChangeText={setOtp}
-                  maxLength={6}
-                  autoFocus
-                />
-              </View>
+            </View>
+          </View>
 
-              <TouchableOpacity
-                style={[styles.btn, loading && styles.btnDisabled]}
-                onPress={handleVerifyOtp}
-                disabled={loading}
-                activeOpacity={0.85}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.btnText}>Verify & Login</Text>
-                )}
-              </TouchableOpacity>
+          {/* Sign In Button */}
+          <TouchableOpacity
+            style={[styles.btn, loading && styles.btnDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            {loading
+              ? <ActivityIndicator color={Colors.bg} />
+              : <Text style={styles.btnText}>Sign In →</Text>
+            }
+          </TouchableOpacity>
 
-              <TouchableOpacity style={styles.backBtn} onPress={() => setStep('phone')}>
-                <Text style={styles.backBtnText}>← Change number</Text>
-              </TouchableOpacity>
-            </>
-          )}
+          {/* Help text */}
+          <View style={styles.helpBox}>
+            <Text style={styles.helpText}>
+              📞 Don&apos;t have login details? Contact your teacher to get your email & password.
+            </Text>
+          </View>
         </View>
 
-        <Text style={styles.footer}>Cosmos Tutorials, Hyderabad</Text>
+        <Text style={styles.footer}>Cosmos Tutorials · Hyderabad · IIT Foundation</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   )
@@ -144,55 +127,61 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  scroll:    { flexGrow: 1, justifyContent: 'center', padding: 24 },
 
-  logoContainer: { alignItems: 'center', marginBottom: 40 },
+  logoContainer: { alignItems: 'center', marginBottom: 36 },
   logoCircle: {
-    width: 72, height: 72, borderRadius: 20,
+    width: 80, height: 80, borderRadius: 22,
     backgroundColor: Colors.blue, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 14, shadowColor: Colors.primary, shadowOpacity: 0.5,
+    marginBottom: 16,
+    shadowColor: Colors.primary, shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 8 }, shadowRadius: 20, elevation: 10,
   },
-  logoEmoji: { fontSize: 32 },
-  brandName: { fontSize: 24, fontWeight: '800', color: Colors.text, letterSpacing: -0.5 },
+  logoEmoji:    { fontSize: 36 },
+  brandName:    { fontSize: 26, fontWeight: '800', color: Colors.primary, letterSpacing: -0.5 },
   brandTagline: { fontSize: 13, color: Colors.muted, marginTop: 4 },
 
   card: {
     backgroundColor: Colors.card, borderRadius: 20,
     borderWidth: 1, borderColor: Colors.border, padding: 24,
   },
-  cardTitle: { fontSize: 20, fontWeight: '700', color: Colors.text, marginBottom: 6 },
-  cardSubtitle: { fontSize: 13, color: Colors.muted, marginBottom: 24 },
+  cardTitle:    { fontSize: 20, fontWeight: '700', color: Colors.text, marginBottom: 6 },
+  cardSubtitle: { fontSize: 13, color: Colors.muted, marginBottom: 24, lineHeight: 18 },
 
-  inputGroup: { marginBottom: 20 },
-  inputLabel: { fontSize: 12, fontWeight: '600', color: Colors.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
-  phoneRow: { flexDirection: 'row', gap: 10 },
-  countryCode: {
-    paddingHorizontal: 12, paddingVertical: 13,
-    backgroundColor: Colors.surface, borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.border, justifyContent: 'center',
+  inputGroup:  { marginBottom: 16 },
+  inputLabel: {
+    fontSize: 11, fontWeight: '700', color: Colors.muted,
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8,
   },
-  countryCodeText: { fontSize: 14, color: Colors.text },
   input: {
     backgroundColor: Colors.surface, borderRadius: 12,
     borderWidth: 1, borderColor: Colors.border,
     paddingHorizontal: 14, paddingVertical: 13,
     color: Colors.text, fontSize: 15,
   },
-  phoneInput: { flex: 1, fontFamily: 'Courier', letterSpacing: 1 },
-  otpInput: { textAlign: 'center', fontSize: 22, fontWeight: '700', letterSpacing: 8 },
+  passwordRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  passwordInput:{ flex: 1 },
+  eyeBtn: {
+    paddingHorizontal: 12, paddingVertical: 13,
+    backgroundColor: Colors.surface, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  eyeText: { fontSize: 16 },
 
   btn: {
     backgroundColor: Colors.primary, borderRadius: 14,
-    paddingVertical: 15, alignItems: 'center',
-    shadowColor: Colors.primary, shadowOpacity: 0.4,
-    shadowOffset: { width: 0, height: 6 }, shadowRadius: 15, elevation: 8,
+    paddingVertical: 15, alignItems: 'center', marginTop: 8,
+    shadowColor: Colors.primary, shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 6,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: Colors.bg, fontSize: 15, fontWeight: '700' },
+  btnText: { color: Colors.bg, fontSize: 16, fontWeight: '800' },
 
-  backBtn: { marginTop: 16, alignItems: 'center' },
-  backBtnText: { color: Colors.muted, fontSize: 13 },
+  helpBox: {
+    marginTop: 16, backgroundColor: Colors.surface,
+    borderRadius: 10, padding: 12, borderWidth: 1, borderColor: Colors.border,
+  },
+  helpText: { fontSize: 12, color: Colors.muted, lineHeight: 18, textAlign: 'center' },
 
-  footer: { textAlign: 'center', color: Colors.border, fontSize: 12, marginTop: 32 },
+  footer: { textAlign: 'center', color: Colors.subtle, fontSize: 11, marginTop: 28 },
 })

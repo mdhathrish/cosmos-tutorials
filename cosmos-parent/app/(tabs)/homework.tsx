@@ -19,11 +19,14 @@ export default function HomeworkScreen() {
     const { data: student } = await supabase.from('students').select('id').eq('parent_id', parentUser.id).eq('is_active', true).single()
     if (!student) return
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('homework_submissions')
       .select('*, homework(title, description, due_date)')
       .eq('student_id', student.id)
-      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching homework submissions:', error)
+    }
 
     setSubmissions(data || [])
     setLoading(false)
@@ -75,13 +78,14 @@ export default function HomeworkScreen() {
         <>
           <Text style={styles.sectionTitle}>Pending</Text>
           {pending.map(sub => {
-            const due = sub.homework?.due_date || ''
+            const hwData = Array.isArray(sub.homework) ? sub.homework[0] : sub.homework;
+            const due = hwData?.due_date || ''
             const overdue = isOverdue(due)
             const today = isDueToday(due)
             return (
               <View key={sub.id} style={[styles.hwCard, overdue ? styles.hwOverdue : today ? styles.hwToday : styles.hwPending]}>
                 <View style={styles.hwTop}>
-                  <Text style={styles.hwTitle}>{sub.homework?.title}</Text>
+                  <Text style={styles.hwTitle}>{hwData?.title}</Text>
                   <View style={[styles.hwBadge,
                     overdue ? { backgroundColor: Colors.red + '20', borderColor: Colors.red + '40' } :
                     today ? { backgroundColor: Colors.orange + '20', borderColor: Colors.orange + '40' } :
@@ -92,8 +96,8 @@ export default function HomeworkScreen() {
                     </Text>
                   </View>
                 </View>
-                {sub.homework?.description && (
-                  <Text style={styles.hwDesc} numberOfLines={2}>{sub.homework.description}</Text>
+                {hwData?.description && (
+                  <Text style={styles.hwDesc} numberOfLines={2}>{hwData.description}</Text>
                 )}
                 <View style={styles.hwFooter}>
                   <Text style={[styles.hwDue, { color: overdue ? Colors.red : today ? Colors.orange : Colors.muted }]}>
@@ -110,11 +114,13 @@ export default function HomeworkScreen() {
       {submitted.length > 0 && (
         <>
           <Text style={[styles.sectionTitle, { marginTop: pending.length > 0 ? 8 : 0 }]}>Completed</Text>
-          {submitted.map(sub => (
-            <View key={sub.id} style={[styles.hwCard, styles.hwDone]}>
-              <View style={styles.hwTop}>
-                <Text style={styles.hwTitle}>{sub.homework?.title}</Text>
-                <View style={[styles.hwBadge, { backgroundColor: Colors.green + '20', borderColor: Colors.green + '40' }]}>
+          {submitted.map(sub => {
+            const hwData = Array.isArray(sub.homework) ? sub.homework[0] : sub.homework;
+            return (
+              <View key={sub.id} style={[styles.hwCard, styles.hwDone]}>
+                <View style={styles.hwTop}>
+                  <Text style={styles.hwTitle}>{hwData?.title}</Text>
+                  <View style={[styles.hwBadge, { backgroundColor: Colors.green + '20', borderColor: Colors.green + '40' }]}>
                   <Text style={[styles.hwBadgeText, { color: Colors.green }]}>
                     {sub.status === 'graded' ? '⭐ Graded' : '✅ Submitted'}
                   </Text>
@@ -130,7 +136,8 @@ export default function HomeworkScreen() {
                 {sub.submitted_at ? `Submitted ${new Date(sub.submitted_at).toLocaleDateString('en-IN')}` : 'Submitted'}
               </Text>
             </View>
-          ))}
+            )
+          })}
         </>
       )}
 
@@ -138,7 +145,7 @@ export default function HomeworkScreen() {
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>📚</Text>
           <Text style={styles.emptyTitle}>No homework assigned yet</Text>
-          <Text style={styles.emptySubtitle}>Homework assigned by your teacher will appear here.</Text>
+          <Text style={styles.emptySubtitle}>Homework assigned by your teacher&apos;s will appear here.</Text>
         </View>
       )}
     </ScrollView>

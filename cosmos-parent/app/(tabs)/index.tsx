@@ -157,7 +157,7 @@ export default function HomeScreen() {
       )}
 
       {/* Today's attendance spotlight */}
-      <Text style={styles.sectionTitle}>Today's Attendance</Text>
+      <Text style={styles.sectionTitle}>Today&apos;s Attendance</Text>
       <View style={[styles.attendanceCard,
         todayLog?.status === 'present' ? styles.attendancePresent :
         todayLog?.status === 'absent' ? styles.attendanceAbsent :
