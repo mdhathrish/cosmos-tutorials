@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react'
 import { createClient, type Batch } from '@/lib/supabase'
 import { friendlyError } from '@/lib/errors'
 import Sidebar from '@/components/Sidebar'
-import { Plus, Loader2, Trash2, ChevronDown, BookOpen } from 'lucide-react'
+import { Plus, Loader2, Trash2, ChevronDown, BookOpen, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
+import Link from 'next/link'
 
 interface Homework {
     id: string
@@ -83,7 +84,10 @@ export default function HomeworkPage() {
                                         today ? 'border-cosmos-orange/30 bg-cosmos-orange/5' : ''
                                     }`}>
                                     <div className="flex items-start justify-between gap-3 mb-2">
-                                        <h3 className="font-display font-bold text-cosmos-text">{hw.title}</h3>
+                                        <Link href={`/homework/${hw.id}`} className="font-display font-bold text-cosmos-text hover:text-cosmos-primary transition-colors flex items-center gap-1.5">
+                                            {hw.title}
+                                            <ExternalLink size={14} className="opacity-50" />
+                                        </Link>
                                         <div className="flex items-center gap-2 shrink-0">
                                             {overdue && <span className="badge-red">Overdue</span>}
                                             {today && <span className="badge-amber">Due Today</span>}

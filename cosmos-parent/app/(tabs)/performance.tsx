@@ -7,6 +7,10 @@ import {
 } from 'react-native'
 import { supabase, type ConceptPerformance } from '../../lib/supabase'
 import { Colors, getHeatColor } from '../../constants/theme'
+import { LinearGradient } from 'expo-linear-gradient'
+import { Activity, Target, Zap } from 'lucide-react-native'
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const { width } = Dimensions.get('window')
 
@@ -19,6 +23,7 @@ interface GroupedPerformance {
 }
 
 export default function PerformanceScreen() {
+  const insets = useSafeAreaInsets()
   const [grouped, setGrouped] = useState<GroupedPerformance[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -40,7 +45,6 @@ export default function PerformanceScreen() {
 
     setStudentName(student.full_name)
 
-    // Query the aggregated view
     const { data: perf } = await supabase
       .from('student_concept_performance')
       .select('*')
@@ -48,12 +52,10 @@ export default function PerformanceScreen() {
       .order('subject')
 
     if (perf && perf.length > 0) {
-      // Calculate overall
       const totalObtained = perf.reduce((s: number, p: ConceptPerformance) => s + p.total_obtained, 0)
       const totalPossible = perf.reduce((s: number, p: ConceptPerformance) => s + p.total_possible, 0)
       setOverallScore(totalPossible > 0 ? Math.round((totalObtained / totalPossible) * 100) : 0)
 
-      // Group by subject → chapter
       const subjectMap: { [s: string]: { [c: string]: ConceptPerformance[] } } = {}
       for (const p of perf as ConceptPerformance[]) {
         if (!subjectMap[p.subject]) subjectMap[p.subject] = {}
@@ -85,7 +87,7 @@ export default function PerformanceScreen() {
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator color={Colors.primary} size="large" />
-        <Text style={styles.loadingText}>Loading concept map…</Text>
+        <Text style={styles.loadingText}>Analyzing progress mapping…</Text>
       </View>
     )
   }
@@ -93,93 +95,107 @@ export default function PerformanceScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.scroll}
+      contentContainerStyle={[styles.scroll, { paddingTop: Math.max(insets.top + 20, 60) }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} tintColor={Colors.primary} />}
     >
-      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>🧠 Concept Heatmap</Text>
-        <Text style={styles.subtitle}>{studentName}&apos;s micro-skill breakdown</Text>
+        <View style={styles.iconBox}>
+          <Activity color={Colors.primary} size={24} strokeWidth={2.5} />
+        </View>
+        <Text style={styles.title}>Skill Matrix</Text>
+        <Text style={styles.subtitle}>{studentName.split(' ')[0]}&apos;s micro-concept mastery</Text>
       </View>
 
-      {/* Overall score ring */}
-      <View style={[styles.overallCard, { backgroundColor: overallColor.bg, borderColor: overallColor.text + '40' }]}>
-        <View style={styles.overallLeft}>
-          <Text style={[styles.overallScore, { color: overallColor.text }]}>{overallScore}%</Text>
-          <Text style={[styles.overallLabel, { color: overallColor.text }]}>{overallColor.label}</Text>
-        </View>
-        <View style={styles.overallRight}>
-          <Text style={styles.overallDesc}>Overall across all tests</Text>
-          <View style={styles.overallBar}>
-            <View style={[styles.overallBarFill, { width: `${overallScore}%` as any, backgroundColor: overallColor.text }]} />
+      <Animated.View entering={FadeInDown.duration(600).springify()}>
+        <LinearGradient 
+          colors={overallScore >= 70 ? ['#052e16', '#022c22'] : overallScore >= 40 ? ['#451a03', '#2e1001'] : ['#4c0519', '#2a020b']} 
+          style={[styles.overallCard, { borderColor: overallColor.text + '50' }]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.overallLeft}>
+            <Text style={[styles.overallScore, { color: overallColor.text }]}>{overallScore}<Text style={styles.pct}>%</Text></Text>
+            <View style={[styles.badge, { backgroundColor: overallColor.bg }]}>
+              <Text style={[styles.overallLabel, { color: overallColor.text }]}>{overallColor.label}</Text>
+            </View>
           </View>
-        </View>
-      </View>
+          <View style={styles.overallRight}>
+            <View style={styles.targetRow}>
+              <Target color={Colors.muted} size={14} />
+              <Text style={styles.overallDesc}>Overall Academy Score</Text>
+            </View>
+            <View style={styles.overallBar}>
+              <View style={[styles.overallBarFill, { width: `${overallScore}%` as any, backgroundColor: overallColor.text, shadowColor: overallColor.text, shadowOpacity: 0.8, shadowRadius: 10 }]} />
+            </View>
+          </View>
+        </LinearGradient>
+      </Animated.View>
 
-      {/* Subject tabs */}
       {subjects.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs}>
-          {subjects.map(s => (
-            <TouchableOpacity
-              key={s}
-              onPress={() => setSelectedSubject(s)}
-              style={[styles.tab, selectedSubject === s && styles.tabActive]}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.tabText, selectedSubject === s && styles.tabTextActive]}>
-                {s === 'Mathematics' ? '📐 Math' :
-                 s === 'Physics' ? '⚡ Physics' :
-                 s === 'Chemistry' ? '🧪 Chemistry' :
-                 s === 'Biology' ? '🌿 Biology' : s}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <Animated.View entering={FadeIn.duration(800).delay(200)}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs}>
+            {subjects.map(s => (
+              <TouchableOpacity
+                key={s}
+                onPress={() => setSelectedSubject(s)}
+                style={[styles.tab, selectedSubject === s && styles.tabActive]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tabText, selectedSubject === s && styles.tabTextActive]}>
+                  {s === 'Mathematics' ? '📐 Math' :
+                   s === 'Physics' ? '⚡ Physics' :
+                   s === 'Chemistry' ? '🧪 Chemistry' :
+                   s === 'Biology' ? '🌿 Biology' : s}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </Animated.View>
       )}
 
-      {/* Heatmap grid by chapter */}
       {activeGroup ? (
-        activeGroup.chapters.map(({ chapter, concepts }) => (
-          <View key={chapter} style={styles.chapterBlock}>
+        activeGroup.chapters.map(({ chapter, concepts }, index) => (
+          <Animated.View entering={FadeInDown.duration(600).springify().delay(300 + index * 100)} key={chapter} style={styles.chapterBlock}>
             <Text style={styles.chapterTitle}>{chapter}</Text>
             <View style={styles.conceptGrid}>
               {concepts.map(c => {
                 const heat = getHeatColor(c.percentage_score || 0)
                 return (
                   <View key={c.micro_tag_id} style={[styles.conceptCell, { backgroundColor: heat.bg, borderColor: heat.text + '30' }]}>
-                    <Text style={[styles.conceptPct, { color: heat.text }]}>{Math.round(c.percentage_score || 0)}%</Text>
+                    <View style={styles.conceptTop}>
+                      <Text style={[styles.conceptPct, { color: heat.text }]}>{Math.round(c.percentage_score || 0)}%</Text>
+                      <Zap color={heat.text} size={14} opacity={0.5} />
+                    </View>
                     <Text style={styles.conceptName} numberOfLines={2}>{c.concept_name}</Text>
                     <Text style={[styles.conceptBadge, { color: heat.text }]}>{heat.label}</Text>
                     <View style={styles.conceptMeta}>
-                      <Text style={styles.conceptMetaText}>{c.questions_attempted}Q</Text>
-                      <Text style={styles.conceptMetaText}>{c.total_obtained}/{c.total_possible}m</Text>
+                      <Text style={styles.conceptMetaText}>{c.questions_attempted} Q</Text>
+                      <Text style={styles.conceptMetaText}>{c.total_obtained}/{c.total_possible} pts</Text>
                     </View>
                   </View>
                 )
               })}
             </View>
-          </View>
+          </Animated.View>
         ))
       ) : (
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>📊</Text>
-          <Text style={styles.emptyTitle}>No test data yet</Text>
-          <Text style={styles.emptySubtitle}>Performance data will appear here once tests are entered by the admin.</Text>
+          <Text style={styles.emptyTitle}>No matrices available</Text>
+          <Text style={styles.emptySubtitle}>Granular performance data will reconstruct here after examinations.</Text>
         </View>
       )}
 
-      {/* Legend */}
       {grouped.length > 0 && (
-        <View style={styles.legendCard}>
-          <Text style={styles.legendTitle}>Score Legend</Text>
+        <Animated.View entering={FadeIn.duration(1000).delay(600)} style={styles.legendCard}>
+          <Text style={styles.legendTitle}>Mastery Spectrum</Text>
           <View style={styles.legendRow}>
             {[
-              { range: '≥85%', label: 'Excellent', color: '#4ade80' },
-              { range: '70–84%', label: 'Strong', color: '#22c55e' },
-              { range: '55–69%', label: 'Good', color: '#f5c842' },
-              { range: '40–54%', label: 'Needs Work', color: '#f59e0b' },
-              { range: '25–39%', label: 'Weak', color: '#ef4444' },
-              { range: '<25%', label: 'Critical', color: '#dc2626' },
+              { range: '≥85%', label: 'Excellent', color: '#34D399' },
+              { range: '70–84%', label: 'Strong', color: '#6EE7B7' },
+              { range: '55–69%', label: 'Good', color: '#FCD34D' },
+              { range: '40–54%', label: 'Needs Work', color: '#FDBA74' },
+              { range: '25–39%', label: 'Weak', color: '#FCA5A5' },
+              { range: '<25%', label: 'Critical', color: '#F87171' },
             ].map(l => (
               <View key={l.range} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: l.color }]} />
@@ -188,69 +204,75 @@ export default function PerformanceScreen() {
               </View>
             ))}
           </View>
-        </View>
+        </Animated.View>
       )}
     </ScrollView>
   )
 }
 
-const CELL_WIDTH = (width - 56) / 2
+const CELL_WIDTH = (width - 60) / 2
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  scroll: { padding: 20, paddingBottom: 40 },
+  scroll: { padding: 24, paddingBottom: 100 },
   centered: { justifyContent: 'center', alignItems: 'center', flex: 1 },
-  loadingText: { color: Colors.muted, marginTop: 12 },
+  loadingText: { color: Colors.muted, marginTop: 16, fontFamily: 'Outfit_500Medium' },
 
-  header: { marginBottom: 20 },
-  title: { fontSize: 22, fontWeight: '800', color: Colors.text },
-  subtitle: { fontSize: 13, color: Colors.muted, marginTop: 4 },
+  header: { marginBottom: 32, alignItems: 'center' },
+  iconBox: { width: 56, height: 56, borderRadius: 16, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  title: { fontSize: 32, fontFamily: 'Outfit_800ExtraBold', color: Colors.text, letterSpacing: -1 },
+  subtitle: { fontSize: 14, fontFamily: 'Outfit_500Medium', color: Colors.muted, marginTop: 6 },
 
   overallCard: {
-    borderRadius: 16, padding: 20, borderWidth: 1,
-    flexDirection: 'row', alignItems: 'center', marginBottom: 20,
+    borderRadius: 24, padding: 24, borderWidth: 1,
+    flexDirection: 'row', alignItems: 'center', marginBottom: 32,
+    shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }
   },
-  overallLeft: { alignItems: 'center', marginRight: 20, minWidth: 70 },
-  overallScore: { fontSize: 38, fontWeight: '900', fontFamily: 'Courier' },
-  overallLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 },
+  overallLeft: { alignItems: 'flex-start', marginRight: 24 },
+  overallScore: { fontSize: 44, fontFamily: 'Outfit_800ExtraBold', letterSpacing: -1 },
+  pct: { fontSize: 24, fontFamily: 'Outfit_600SemiBold', opacity: 0.6 },
+  badge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8, marginTop: -4 },
+  overallLabel: { fontSize: 11, fontFamily: 'Outfit_700Bold', textTransform: 'uppercase', letterSpacing: 1.5 },
   overallRight: { flex: 1 },
-  overallDesc: { fontSize: 12, color: Colors.muted, marginBottom: 10 },
-  overallBar: { height: 6, backgroundColor: Colors.border, borderRadius: 3, overflow: 'hidden' },
-  overallBarFill: { height: '100%', borderRadius: 3 },
+  targetRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
+  overallDesc: { fontSize: 13, fontFamily: 'Outfit_600SemiBold', color: Colors.muted },
+  overallBar: { height: 8, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 4, overflow: 'hidden' },
+  overallBarFill: { height: '100%', borderRadius: 4 },
 
-  tabsScroll: { marginBottom: 16 },
-  tabs: { gap: 8, paddingRight: 4 },
+  tabsScroll: { marginBottom: 32 },
+  tabs: { gap: 10, paddingRight: 4 },
   tab: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: 18, paddingVertical: 10, borderRadius: 24,
+    backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border,
   },
   tabActive: { backgroundColor: Colors.primary + '20', borderColor: Colors.primary },
-  tabText: { fontSize: 13, color: Colors.muted, fontWeight: '600' },
-  tabTextActive: { color: Colors.primary },
+  tabText: { fontSize: 14, color: Colors.muted, fontFamily: 'Outfit_600SemiBold' },
+  tabTextActive: { color: Colors.primary, fontFamily: 'Outfit_700Bold' },
 
-  chapterBlock: { marginBottom: 24 },
-  chapterTitle: { fontSize: 14, fontWeight: '700', color: Colors.text, marginBottom: 12 },
-  conceptGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  chapterBlock: { marginBottom: 32 },
+  chapterTitle: { fontSize: 18, fontFamily: 'Outfit_700Bold', color: Colors.text, marginBottom: 16, letterSpacing: -0.5 },
+  conceptGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   conceptCell: {
-    width: CELL_WIDTH, borderRadius: 14, borderWidth: 1,
-    padding: 14, minHeight: 110,
+    width: CELL_WIDTH, borderRadius: 20, borderWidth: 1,
+    padding: 16, minHeight: 120,
   },
-  conceptPct: { fontSize: 26, fontWeight: '900', fontFamily: 'Courier', marginBottom: 4 },
-  conceptName: { fontSize: 12, color: Colors.text, fontWeight: '600', lineHeight: 16, marginBottom: 6, flex: 1 },
-  conceptBadge: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
-  conceptMeta: { flexDirection: 'row', gap: 8, marginTop: 'auto' as any },
-  conceptMetaText: { fontSize: 10, color: Colors.muted },
+  conceptTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  conceptPct: { fontSize: 28, fontFamily: 'Outfit_800ExtraBold', letterSpacing: -1 },
+  conceptName: { fontSize: 13, color: Colors.text, fontFamily: 'Outfit_600SemiBold', lineHeight: 18, marginBottom: 8, flex: 1 },
+  conceptBadge: { fontSize: 10, fontFamily: 'Outfit_700Bold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
+  conceptMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' as any },
+  conceptMetaText: { fontSize: 11, fontFamily: 'Outfit_500Medium', color: Colors.muted },
 
   emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 20 },
   emptyEmoji: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: Colors.text, marginBottom: 8 },
-  emptySubtitle: { fontSize: 13, color: Colors.muted, textAlign: 'center', lineHeight: 20 },
+  emptyTitle: { fontSize: 20, fontFamily: 'Outfit_700Bold', color: Colors.text, marginBottom: 8 },
+  emptySubtitle: { fontSize: 14, fontFamily: 'Outfit_400Regular', color: Colors.muted, textAlign: 'center', lineHeight: 22 },
 
-  legendCard: { backgroundColor: Colors.card, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 16, marginTop: 8 },
-  legendTitle: { fontSize: 11, fontWeight: '700', color: Colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
-  legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  legendCard: { backgroundColor: Colors.surface, borderRadius: 20, borderWidth: 1, borderColor: Colors.border, padding: 20, marginTop: 16 },
+  legendTitle: { fontSize: 12, fontFamily: 'Outfit_700Bold', color: Colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 16 },
+  legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: 11, color: Colors.text, fontWeight: '600' },
-  legendRange: { fontSize: 10, color: Colors.muted },
+  legendText: { fontSize: 12, color: Colors.text, fontFamily: 'Outfit_600SemiBold' },
+  legendRange: { fontSize: 11, color: Colors.muted, fontFamily: 'Outfit_500Medium' },
 })

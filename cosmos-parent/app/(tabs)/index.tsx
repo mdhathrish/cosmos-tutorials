@@ -6,10 +6,13 @@ import {
 } from 'react-native'
 import { supabase, type Student, type AttendanceLog } from '../../lib/supabase'
 import { Colors } from '../../constants/theme'
-// Push notifications disabled in Expo Go SDK 54
-// import { registerForPushNotifications } from '../../lib/notifications'
+import { LinearGradient } from 'expo-linear-gradient'
+import { Telescope, LogOut, Clock, XCircle, CheckCircle, Flame } from 'lucide-react-native'
+import Animated, { FadeInDown } from 'react-native-reanimated'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets()
   const [student, setStudent] = useState<Student | null>(null)
   const [todayLog, setTodayLog] = useState<AttendanceLog | null>(null)
   const [recentLogs, setRecentLogs] = useState<AttendanceLog[]>([])
@@ -24,7 +27,6 @@ export default function HomeScreen() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Get parent user record
       const { data: parentUser } = await supabase
         .from('users')
         .select('id, full_name')
@@ -34,7 +36,6 @@ export default function HomeScreen() {
       if (!parentUser) return
       setUserName(parentUser.full_name)
 
-      // Get student
       const { data: studentData } = await supabase
         .from('students')
         .select('*, batches(batch_name, subject, timing_start, timing_end)')
@@ -45,7 +46,6 @@ export default function HomeScreen() {
       if (studentData) {
         setStudent(studentData)
 
-        // Today's attendance
         const { data: todayAttendance } = await supabase
           .from('attendance_logs')
           .select('*')
@@ -55,7 +55,6 @@ export default function HomeScreen() {
 
         setTodayLog(todayAttendance)
 
-        // Recent 7 days
         const weekAgo = new Date()
         weekAgo.setDate(weekAgo.getDate() - 7)
         const { data: recent } = await supabase
@@ -77,24 +76,18 @@ export default function HomeScreen() {
 
   useEffect(() => { load() }, [])
 
-  // Subscribe to real-time attendance changes
   useEffect(() => {
     if (!student) return
-
     const channel = supabase
       .channel('attendance-realtime')
       .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'attendance_logs',
-        filter: `student_id=eq.${student.id}`,
+        event: '*',schema: 'public', table: 'attendance_logs', filter: `student_id=eq.${student.id}`,
       }, (payload) => {
         if (payload.new && (payload.new as AttendanceLog).log_date === today) {
           setTodayLog(payload.new as AttendanceLog)
         }
       })
       .subscribe()
-
     return () => { supabase.removeChannel(channel) }
   }, [student])
 
@@ -117,185 +110,189 @@ export default function HomeScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.scroll}
+      contentContainerStyle={[styles.scroll, { paddingTop: Math.max(insets.top + 20, 60) }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} tintColor={Colors.primary} />}
     >
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerBrand}>
-          <Text style={styles.brandEmoji}>🔭</Text>
+          <View style={styles.iconBox}>
+            <Telescope color={Colors.primary} size={22} strokeWidth={2.5} />
+          </View>
           <View>
-            <Text style={styles.brandName}>Cosmos Tutorials</Text>
-            <Text style={styles.brandSub}>Parent Dashboard</Text>
+            <Text style={styles.brandName}>Cosmos</Text>
+            <Text style={styles.brandSub}>Parent Portal</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={() => supabase.auth.signOut()} style={styles.signOutBtn}>
-          <Text style={styles.signOutText}>Sign Out</Text>
+        <TouchableOpacity onPress={() => supabase.auth.signOut()} style={styles.signOutBtn} activeOpacity={0.7}>
+          <LogOut color={Colors.muted} size={18} />
         </TouchableOpacity>
       </View>
 
-      {/* Greeting */}
-      <Text style={styles.greeting}>{greeting} 👋</Text>
+      <Text style={styles.greeting}>{greeting}, {userName.split(' ')[0]}</Text>
 
-      {/* Student card */}
       {student && (
-        <View style={styles.studentCard}>
-          <View style={styles.studentAvatar}>
-            <Text style={styles.studentAvatarText}>{student.full_name[0].toUpperCase()}</Text>
-          </View>
-          <View style={styles.studentInfo}>
-            <Text style={styles.studentName}>{student.full_name}</Text>
-            <Text style={styles.studentMeta}>Grade {student.grade} · {student.batches?.subject}</Text>
-            <Text style={styles.studentBatch}>{student.batches?.batch_name}</Text>
-          </View>
-          <View style={styles.timingBadge}>
-            <Text style={styles.timingText}>
-              {student.batches?.timing_start?.slice(0, 5)} – {student.batches?.timing_end?.slice(0, 5)}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Today's attendance spotlight */}
-      <Text style={styles.sectionTitle}>Today&apos;s Attendance</Text>
-      <View style={[styles.attendanceCard,
-        todayLog?.status === 'present' ? styles.attendancePresent :
-        todayLog?.status === 'absent' ? styles.attendanceAbsent :
-        styles.attendanceUnknown
-      ]}>
-        {!todayLog ? (
-          <View style={styles.attendanceRow}>
-            <Text style={styles.attendanceEmoji}>⏳</Text>
-            <View>
-              <Text style={styles.attendanceStatus}>Not Marked Yet</Text>
-              <Text style={styles.attendanceSubtext}>Session may not have started</Text>
+        <Animated.View entering={FadeInDown.duration(600).springify()}>
+          <LinearGradient colors={Colors.gradientCard} style={styles.studentCard} start={{x: 0, y: 0}} end={{x: 1, y: 1}}>
+            <LinearGradient colors={Colors.gradientPrimary} style={styles.studentAvatar}>
+              <Text style={styles.studentAvatarText}>{student.full_name[0].toUpperCase()}</Text>
+            </LinearGradient>
+            <View style={styles.studentInfo}>
+              <Text style={styles.studentName}>{student.full_name}</Text>
+              <Text style={styles.studentMeta}>Grade {student.grade} · {student.batches?.subject}</Text>
+              <Text style={styles.studentBatch}>{student.batches?.batch_name}</Text>
             </View>
-          </View>
-        ) : todayLog.status === 'absent' ? (
-          <View style={styles.attendanceRow}>
-            <Text style={styles.attendanceEmoji}>❌</Text>
-            <View>
-              <Text style={[styles.attendanceStatus, { color: Colors.red }]}>Absent Today</Text>
-              <Text style={styles.attendanceSubtext}>
-                {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
+            <View style={styles.timingBadge}>
+              <Text style={styles.timingText}>
+                {student.batches?.timing_start?.slice(0, 5)} – {student.batches?.timing_end?.slice(0, 5)}
               </Text>
             </View>
-          </View>
-        ) : (
-          <View>
+          </LinearGradient>
+        </Animated.View>
+      )}
+
+      <Animated.View entering={FadeInDown.duration(700).springify().delay(100)}>
+        <Text style={styles.sectionTitle}>Today&apos;s Status</Text>
+        <View style={[styles.attendanceCard,
+          todayLog?.status === 'present' ? styles.attendancePresent :
+          todayLog?.status === 'absent' ? styles.attendanceAbsent :
+          styles.attendanceUnknown
+        ]}>
+          {!todayLog ? (
             <View style={styles.attendanceRow}>
-              <Text style={styles.attendanceEmoji}>✅</Text>
+              <Clock color={Colors.orange} size={32} strokeWidth={2} />
               <View>
-                <Text style={[styles.attendanceStatus, { color: Colors.green }]}>Present Today</Text>
+                <Text style={styles.attendanceStatus}>Not Marked Yet</Text>
+                <Text style={styles.attendanceSubtext}>Session may not have started</Text>
+              </View>
+            </View>
+          ) : todayLog.status === 'absent' ? (
+            <View style={styles.attendanceRow}>
+              <XCircle color={Colors.red} size={32} strokeWidth={2} />
+              <View>
+                <Text style={[styles.attendanceStatus, { color: Colors.red }]}>Absent Today</Text>
                 <Text style={styles.attendanceSubtext}>
                   {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
                 </Text>
               </View>
             </View>
-            <View style={styles.timingRow}>
-              <View style={styles.timingChip}>
-                <Text style={styles.timingChipLabel}>CHECK IN</Text>
-                <Text style={styles.timingChipTime}>{formatTime(todayLog.check_in_time)}</Text>
+          ) : (
+            <View>
+              <View style={styles.attendanceRow}>
+                <CheckCircle color={Colors.green} size={32} strokeWidth={2} />
+                <View>
+                  <Text style={[styles.attendanceStatus, { color: Colors.green }]}>Present Today</Text>
+                  <Text style={styles.attendanceSubtext}>
+                    {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </Text>
+                </View>
               </View>
-              {todayLog.check_out_time ? (
-                <View style={[styles.timingChip, styles.timingChipOut]}>
-                  <Text style={[styles.timingChipLabel, { color: Colors.muted }]}>CHECK OUT</Text>
-                  <Text style={[styles.timingChipTime, { color: Colors.cyan }]}>{formatTime(todayLog.check_out_time)}</Text>
+              <View style={styles.timingRow}>
+                <View style={styles.timingChip}>
+                  <Text style={styles.timingChipLabel}>CHECK IN</Text>
+                  <Text style={styles.timingChipTime}>{formatTime(todayLog.check_in_time)}</Text>
                 </View>
-              ) : (
-                <View style={[styles.timingChip, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-                  <Text style={styles.timingChipLabel}>CHECK OUT</Text>
-                  <Text style={[styles.timingChipTime, { color: Colors.muted }]}>In session…</Text>
-                </View>
-              )}
+                {todayLog.check_out_time ? (
+                  <View style={[styles.timingChip, styles.timingChipOut]}>
+                    <Text style={[styles.timingChipLabel, { color: Colors.cyan }]}>CHECK OUT</Text>
+                    <Text style={[styles.timingChipTime, { color: Colors.cyan }]}>{formatTime(todayLog.check_out_time)}</Text>
+                  </View>
+                ) : (
+                  <View style={[styles.timingChip, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+                    <Text style={[styles.timingChipLabel, { color: Colors.muted }]}>CHECK OUT</Text>
+                    <Text style={[styles.timingChipTime, { color: Colors.muted }]}>In session…</Text>
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
-        )}
-      </View>
+          )}
+        </View>
+      </Animated.View>
 
-      {/* 7-day streak */}
-      <Text style={styles.sectionTitle}>Last 7 Days</Text>
-      <View style={styles.streakRow}>
-        {Array.from({ length: 7 }, (_, i) => {
-          const d = new Date()
-          d.setDate(d.getDate() - (6 - i))
-          const ds = d.toISOString().split('T')[0]
-          const log = recentLogs.find(l => l.log_date === ds)
-          const isToday = ds === today
-          return (
-            <View key={ds} style={[styles.streakDay, isToday && styles.streakDayToday]}>
-              <Text style={styles.streakDayName}>{d.toLocaleDateString('en-IN', { weekday: 'narrow' })}</Text>
-              <Text style={styles.streakDayNum}>{d.getDate()}</Text>
-              <Text style={styles.streakDot}>
-                {!log ? '○' : log.status === 'present' ? '●' : log.status === 'absent' ? '✕' : '◑'}
-              </Text>
-            </View>
-          )
-        })}
-      </View>
-      <View style={styles.streakLegend}>
-        <Text style={styles.legendItem}><Text style={{ color: Colors.green }}>●</Text> Present</Text>
-        <Text style={styles.legendItem}><Text style={{ color: Colors.red }}>✕</Text> Absent</Text>
-        <Text style={styles.legendItem}><Text style={{ color: Colors.muted }}>○</Text> No Class</Text>
-      </View>
+      <Animated.View entering={FadeInDown.duration(800).springify().delay(200)}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Attendance Streak</Text>
+          <Flame color={Colors.primary} size={16} />
+        </View>
+        
+        <View style={styles.streakRow}>
+          {Array.from({ length: 7 }, (_, i) => {
+            const d = new Date()
+            d.setDate(d.getDate() - (6 - i))
+            const ds = d.toISOString().split('T')[0]
+            const log = recentLogs.find(l => l.log_date === ds)
+            const isToday = ds === today
+            
+            let dotColor = Colors.muted
+            if (log?.status === 'present') dotColor = Colors.green
+            if (log?.status === 'absent') dotColor = Colors.red
+
+            return (
+              <View key={ds} style={[styles.streakDay, isToday && styles.streakDayToday]}>
+                <Text style={styles.streakDayName}>{d.toLocaleDateString('en-IN', { weekday: 'narrow' })}</Text>
+                <Text style={styles.streakDayNum}>{d.getDate()}</Text>
+                <View style={[styles.streakDotRecord, { backgroundColor: dotColor }]} />
+              </View>
+            )
+          })}
+        </View>
+      </Animated.View>
     </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  scroll: { padding: 20, paddingBottom: 40 },
+  scroll: { padding: 24, paddingBottom: 100 },
   centered: { justifyContent: 'center', alignItems: 'center' },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
-  headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandEmoji: { fontSize: 26 },
-  brandName: { fontSize: 15, fontWeight: '800', color: Colors.text },
-  brandSub: { fontSize: 11, color: Colors.muted },
-  signOutBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
-  signOutText: { fontSize: 12, color: Colors.muted },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 },
+  headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
+  brandName: { fontSize: 18, fontFamily: 'Outfit_700Bold', color: Colors.text, letterSpacing: -0.5 },
+  brandSub: { fontSize: 12, fontFamily: 'Outfit_500Medium', color: Colors.primaryLight },
+  signOutBtn: { padding: 10, borderRadius: 12, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
 
-  greeting: { fontSize: 22, fontWeight: '700', color: Colors.text, marginBottom: 16 },
+  greeting: { fontSize: 28, fontFamily: 'Outfit_700Bold', color: Colors.text, marginBottom: 24, letterSpacing: -0.5 },
 
   studentCard: {
-    backgroundColor: Colors.card, borderRadius: 16, borderWidth: 1,
-    borderColor: Colors.border, padding: 16, flexDirection: 'row',
-    alignItems: 'center', marginBottom: 28, gap: 14,
+    borderRadius: 24, borderWidth: 1,
+    borderColor: Colors.border, padding: 20, flexDirection: 'row',
+    alignItems: 'center', marginBottom: 32, gap: 16,
+    shadowColor: Colors.primary, shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }
   },
   studentAvatar: {
-    width: 48, height: 48, borderRadius: 14, backgroundColor: Colors.primary,
+    width: 54, height: 54, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
+    shadowColor: Colors.primary, shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }
   },
-  studentAvatarText: { fontSize: 20, fontWeight: '800', color: '#fff' },
+  studentAvatarText: { fontSize: 22, fontFamily: 'Outfit_800ExtraBold', color: '#fff' },
   studentInfo: { flex: 1 },
-  studentName: { fontSize: 16, fontWeight: '700', color: Colors.text },
-  studentMeta: { fontSize: 12, color: Colors.muted, marginTop: 2 },
-  studentBatch: { fontSize: 11, color: Colors.primary, marginTop: 2 },
-  timingBadge: { backgroundColor: Colors.primary + '22', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: Colors.primary + '44' },
-  timingText: { fontSize: 11, color: Colors.primary, fontFamily: 'Courier', fontWeight: '700' },
+  studentName: { fontSize: 18, fontFamily: 'Outfit_600SemiBold', color: Colors.text },
+  studentMeta: { fontSize: 13, fontFamily: 'Outfit_400Regular', color: Colors.muted, marginTop: 4 },
+  studentBatch: { fontSize: 12, fontFamily: 'Outfit_500Medium', color: Colors.primaryLight, marginTop: 4 },
+  timingBadge: { backgroundColor: Colors.surface, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: Colors.border },
+  timingText: { fontSize: 12, color: Colors.primaryLight, fontFamily: 'Outfit_600SemiBold' },
 
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: Colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  sectionTitle: { fontSize: 14, fontFamily: 'Outfit_700Bold', color: Colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 16 },
 
-  attendanceCard: { borderRadius: 16, padding: 18, borderWidth: 1, marginBottom: 28 },
-  attendancePresent: { backgroundColor: Colors.green + '15', borderColor: Colors.green + '40' },
-  attendanceAbsent: { backgroundColor: Colors.red + '15', borderColor: Colors.red + '40' },
-  attendanceUnknown: { backgroundColor: Colors.orange + '10', borderColor: Colors.orange + '30' },
-  attendanceRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  attendanceEmoji: { fontSize: 32 },
-  attendanceStatus: { fontSize: 17, fontWeight: '700', color: Colors.text },
-  attendanceSubtext: { fontSize: 12, color: Colors.muted, marginTop: 2 },
-  timingRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  timingChip: { flex: 1, backgroundColor: Colors.green + '20', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: Colors.green + '40' },
-  timingChipOut: { backgroundColor: Colors.cyan + '15', borderColor: Colors.cyan + '30' },
-  timingChipLabel: { fontSize: 10, fontWeight: '700', color: Colors.green, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
-  timingChipTime: { fontSize: 18, fontWeight: '800', color: Colors.green, fontFamily: 'Courier' },
+  attendanceCard: { borderRadius: 24, padding: 20, borderWidth: 1, marginBottom: 32 },
+  attendancePresent: { backgroundColor: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.2)' },
+  attendanceAbsent: { backgroundColor: 'rgba(239, 68, 68, 0.05)', borderColor: 'rgba(239, 68, 68, 0.2)' },
+  attendanceUnknown: { backgroundColor: 'rgba(249, 115, 22, 0.05)', borderColor: 'rgba(249, 115, 22, 0.2)' },
+  attendanceRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  attendanceStatus: { fontSize: 18, fontFamily: 'Outfit_700Bold', color: Colors.text },
+  attendanceSubtext: { fontSize: 13, fontFamily: 'Outfit_400Regular', color: Colors.muted, marginTop: 4 },
+  timingRow: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  timingChip: { flex: 1, backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.2)' },
+  timingChipOut: { backgroundColor: 'rgba(6, 182, 212, 0.1)', borderColor: 'rgba(6, 182, 212, 0.2)' },
+  timingChipLabel: { fontSize: 11, fontFamily: 'Outfit_700Bold', color: Colors.green, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
+  timingChipTime: { fontSize: 20, fontFamily: 'Outfit_800ExtraBold', color: Colors.green },
 
-  streakRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  streakDay: { alignItems: 'center', flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, marginHorizontal: 2 },
-  streakDayToday: { borderColor: Colors.primary, backgroundColor: Colors.primary + '15' },
-  streakDayName: { fontSize: 10, color: Colors.muted, fontWeight: '600' },
-  streakDayNum: { fontSize: 13, fontWeight: '700', color: Colors.text, marginVertical: 3 },
-  streakDot: { fontSize: 12, color: Colors.green },
-  streakLegend: { flexDirection: 'row', justifyContent: 'center', gap: 20, marginTop: 6 },
-  legendItem: { fontSize: 11, color: Colors.muted },
+  streakRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  streakDay: { alignItems: 'center', flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
+  streakDayToday: { borderColor: Colors.primary, backgroundColor: 'rgba(99, 102, 241, 0.1)' },
+  streakDayName: { fontSize: 11, fontFamily: 'Outfit_600SemiBold', color: Colors.muted },
+  streakDayNum: { fontSize: 16, fontFamily: 'Outfit_700Bold', color: Colors.text, marginVertical: 8 },
+  streakDotRecord: { width: 8, height: 8, borderRadius: 4 },
 })
