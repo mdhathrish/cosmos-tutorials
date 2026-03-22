@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
@@ -35,7 +35,7 @@ async function registerForPushNotificationsAsync() {
       finalStatus = status;
     }
     if (finalStatus !== 'granted') {
-      console.log('Failed to get push token for push notification!');
+      Alert.alert('Push Permission', 'Permission not granted for notifications!');
       return;
     }
     const projectId =
@@ -47,11 +47,11 @@ async function registerForPushNotificationsAsync() {
           projectId,
         })
       ).data;
-    } catch (e) {
-      console.error('Expo push token error:', e);
+    } catch (e: any) {
+      Alert.alert('Expo Push Token Error', e.message);
     }
   } else {
-    console.log('Must use physical device for Push Notifications');
+    Alert.alert('Device Warning', 'Must use a physical device for Push Notifications');
   }
 
   return token;
@@ -68,7 +68,12 @@ export function usePushNotifications(userId?: string) {
           .update({ push_token: token })
           .eq('auth_id', userId)
           .then(({ error }) => {
-            if (error) console.error('Error saving push token:', error);
+            if (error) {
+              Alert.alert('Database Sync Error', error.message);
+            } else {
+              // OPTIONAL: Confirm success
+              // Alert.alert('Success', 'Push Notifications enabled!');
+            }
           });
       }
     });
