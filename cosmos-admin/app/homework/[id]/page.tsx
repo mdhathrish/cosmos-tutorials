@@ -6,8 +6,8 @@ import { Loader2, ArrowLeft, Search, CheckCircle, AlertCircle } from 'lucide-rea
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 
-export default function HomeworkDetail({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params)
+export default function HomeworkDetail({ params }: { params: { id: string } }) {
+    const { id } = params
     const supabase = createClient()
     const [hw, setHw] = useState<any>(null)
     const [subs, setSubs] = useState<any[]>([])
