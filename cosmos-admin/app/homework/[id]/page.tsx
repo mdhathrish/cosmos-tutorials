@@ -59,9 +59,11 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
                     body: `${sub.student.full_name} did not complete homework: "${hw.title}". Please ensure it gets done.`,
                 }),
             }).catch(e => console.error('Push notification failed:', e))
+            toast.success(`Marked as Not Done. Notify sent to parent.`)
+        } else {
+            toast.error('Student has no registered parent push token!)')
         }
 
-        toast.success(`Marked as Not Done. Notify sent to parent.`)
         load()
     }
 
