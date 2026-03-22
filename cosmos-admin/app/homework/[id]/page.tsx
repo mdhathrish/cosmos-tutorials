@@ -129,9 +129,16 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
                                         <p className="font-semibold text-cosmos-text text-sm">{s.student?.full_name}</p>
                                         <p className="text-xs text-cosmos-muted mt-0.5">{s.grade === 'Not Done' ? <span className="text-cosmos-red">Marked Not Done</span> : 'No submission'}</p>
                                     </div>
-                                    <button onClick={() => handleMarkNotDone(s)} className="btn-secondary text-xs border-cosmos-red/40 text-cosmos-red hover:bg-cosmos-red hover:text-white transition-colors duration-300">
-                                        Mark Not Done
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex gap-1 border-r border-cosmos-border pr-2 mr-1">
+                                            <button onClick={() => handleMarkGraded(s, 'A+')} className="p-1 px-1.5 text-xs rounded bg-cosmos-surface border border-cosmos-border text-cosmos-text hover:bg-cosmos-border transition-colors">A+</button>
+                                            <button onClick={() => handleMarkGraded(s, 'A')} className="p-1 px-1.5 text-xs rounded bg-cosmos-surface border border-cosmos-border text-cosmos-text hover:bg-cosmos-border transition-colors">A</button>
+                                            <button onClick={() => handleMarkGraded(s, 'B')} className="p-1 px-1.5 text-xs rounded bg-cosmos-surface border border-cosmos-border text-cosmos-text hover:bg-cosmos-border transition-colors">B</button>
+                                        </div>
+                                        <button onClick={() => handleMarkNotDone(s)} className="btn-secondary text-xs border-cosmos-red/40 text-cosmos-red hover:bg-cosmos-red hover:text-white transition-colors duration-300">
+                                            Mark Not Done
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
