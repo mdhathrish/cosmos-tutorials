@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { friendlyError } from '@/lib/errors'
 import { useRouter } from 'next/navigation'
-import { Loader2, Telescope } from 'lucide-react'
+import Image from 'next/image'
+import { Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
     const supabase = createClient()
@@ -27,8 +28,8 @@ export default function LoginPage() {
             <div className="w-full max-w-sm">
                 {/* Logo */}
                 <div className="text-center mb-8">
-                    <div className="w-14 h-14 rounded-2xl bg-blue-gradient flex items-center justify-center mx-auto mb-4 shadow-glow-blue">
-                        <Telescope size={24} className="text-cosmos-primary" />
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm overflow-hidden">
+                        <Image src="/logo.png" alt="Cosmos Logo" width={56} height={56} className="w-full h-full object-cover" />
                     </div>
                     <h1 className="font-display text-2xl font-bold text-cosmos-primary">Cosmos Tutorials</h1>
                     <p className="text-cosmos-muted text-sm mt-1">Admin · Teacher Portal</p>

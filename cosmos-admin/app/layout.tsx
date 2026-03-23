@@ -15,8 +15,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body className={`${inter.variable} ${sora.variable} ${jetbrains.variable} font-body bg-cosmos-bg text-cosmos-text antialiased`}>
+
         <Toaster
           position="top-right"
           toastOptions={{

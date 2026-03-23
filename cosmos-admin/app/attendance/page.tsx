@@ -92,7 +92,7 @@ export default function AttendancePage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg star-bg">
       <Sidebar />
-      <main className="ml-60 flex-1 p-6">
+      <main className="md:ml-60 flex-1 p-4 md:p-6 w-full max-w-[100vw]">
         <div className="mb-6">
           <h1 className="font-display text-2xl font-bold text-cosmos-primary">Attendance</h1>
           <p className="text-cosmos-muted text-sm mt-0.5">Check-in and check-out · push notifications sent automatically</p>

@@ -11,26 +11,26 @@ module.exports = {
     extend: {
       colors: {
         cosmos: {
-          bg:       '#030409',     // Pure space
-          surface:  'rgba(255, 255, 255, 0.03)',
-          card:     '#0A0D1A',
-          border:   'rgba(255, 255, 255, 0.08)',
+          bg:       '#F8FAFC',     // Slate 50
+          surface:  'rgba(15, 23, 42, 0.04)', // Tinted Slate
+          card:     '#FFFFFF',
+          border:   'rgba(15, 23, 42, 0.08)',
           primary:  '#6366F1',   // Indigo
           warmoff:  '#F0EAE0',
           blue:     '#3B82F6',
           navy:     '#4338CA',
-          orange:   '#F97316',
-          amber:    '#FBBF24',
+          orange:   '#EA580C',
+          amber:    '#D97706',
           peach:    '#818CF8',
           lightor:  '#FA9E5D',
           gold:     '#F5C842',
-          green:    '#10B981',
-          red:      '#EF4444',
-          yellow:   '#F5C842',
-          cyan:     '#06B6D4',
-          text:     '#FAFAFA',
-          muted:    '#A1A1AA',
-          subtle:   '#52525B',
+          green:    '#059669',
+          red:      '#DC2626',
+          yellow:   '#D97706',
+          cyan:     '#0891B2',
+          text:     '#0F172A',
+          muted:    '#64748B',
+          subtle:   '#94A3B8',
         }
       },
       fontFamily: {

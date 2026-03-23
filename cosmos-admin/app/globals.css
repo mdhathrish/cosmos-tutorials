@@ -5,26 +5,26 @@
 
 @layer base {
   :root {
-    --cosmos-bg:       #060C1E;
-    --cosmos-surface:  #0C1633;
-    --cosmos-card:     #112048;
-    --cosmos-border:   #1E3470;
-    --cosmos-primary:  #FAFAFA;   /* warm white — logo bg */
-    --cosmos-warmoff:  #F0EAE0;   /* warm hover tint */
-    --cosmos-blue:     #1748A0;
-    --cosmos-navy:     #0E3080;
-    --cosmos-orange:   #F28233;
-    --cosmos-amber:    #D96B1D;
-    --cosmos-peach:    #FBBA8C;
+    --cosmos-bg:       #F8FAFC;
+    --cosmos-surface:  rgba(15, 23, 42, 0.04);
+    --cosmos-card:     #FFFFFF;
+    --cosmos-border:   rgba(15, 23, 42, 0.08);
+    --cosmos-primary:  #6366F1;
+    --cosmos-warmoff:  #F0EAE0;
+    --cosmos-blue:     #3B82F6;
+    --cosmos-navy:     #4338CA;
+    --cosmos-orange:   #EA580C;
+    --cosmos-amber:    #D97706;
+    --cosmos-peach:    #818CF8;
     --cosmos-lightor:  #FA9E5D;
-    --cosmos-gold:     #F5C842;
-    --cosmos-green:    #22C55E;
-    --cosmos-red:      #EF4444;
-    --cosmos-yellow:   #F5C842;
-    --cosmos-cyan:     #38BDF8;
-    --cosmos-text:     #E8EDF8;
-    --cosmos-muted:    #8899CC;
-    --cosmos-subtle:   #4A6090;
+    --cosmos-gold:     #FBBF24;
+    --cosmos-green:    #059669;
+    --cosmos-red:      #DC2626;
+    --cosmos-yellow:   #D97706;
+    --cosmos-cyan:     #0891B2;
+    --cosmos-text:     #0F172A;
+    --cosmos-muted:    #64748B;
+    --cosmos-subtle:   #94A3B8;
   }
 
   * { box-sizing: border-box; }
@@ -59,27 +59,24 @@
            focus:ring-2 focus:ring-cosmos-orange focus:border-cosmos-orange;
   }
 
-  /* PRIMARY button — warm white on dark, striking */
   .btn-primary {
-    @apply bg-primary-gradient text-cosmos-bg font-bold px-4 py-2 rounded-lg
+    @apply bg-cosmos-primary text-white font-bold px-4 py-2 rounded-lg
            hover:opacity-90 active:scale-95 transition-all duration-150
            focus:outline-none focus:ring-2 focus:ring-cosmos-primary/50 focus:ring-offset-2
-           focus:ring-offset-cosmos-bg shadow-glow;
+           focus:ring-offset-cosmos-bg shadow-sm;
   }
 
-  /* Orange CTA button */
   .btn-orange {
-    @apply bg-orange-gradient text-white font-semibold px-4 py-2 rounded-lg
+    @apply bg-cosmos-orange text-white font-semibold px-4 py-2 rounded-lg
            hover:opacity-90 active:scale-95 transition-all duration-150
            focus:outline-none focus:ring-2 focus:ring-cosmos-orange/50 focus:ring-offset-2
-           focus:ring-offset-cosmos-bg shadow-glow-orange;
+           focus:ring-offset-cosmos-bg shadow-sm;
   }
 
-  /* Secondary — ghost */
   .btn-secondary {
-    @apply bg-cosmos-card border border-cosmos-border text-cosmos-text font-medium
+    @apply bg-white border border-cosmos-border text-cosmos-text font-medium
            px-4 py-2 rounded-lg hover:bg-cosmos-surface hover:border-cosmos-primary/40
-           active:scale-95 transition-all duration-150;
+           active:scale-95 transition-all duration-150 shadow-sm;
   }
 
   /* Badges */
@@ -116,10 +113,7 @@
 
   /* Background ambience */
   .star-bg {
-    background-image:
-      radial-gradient(circle at 15% 40%, rgba(250,250,250,0.03) 0%, transparent 50%),
-      radial-gradient(circle at 85% 20%, rgba(242,130,51,0.06) 0%, transparent 50%),
-      radial-gradient(circle at 50% 85%, rgba(23,72,160,0.08) 0%, transparent 45%);
+    background: transparent;
   }
 }
 

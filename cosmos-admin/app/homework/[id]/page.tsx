@@ -95,7 +95,7 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
         return (
             <div className="flex min-h-screen bg-cosmos-bg star-bg">
                 <Sidebar />
-                <main className="ml-60 flex-1 p-6 flex items-center justify-center">
+                <main className="md:ml-60 flex-1 p-4 md:p-6 w-full max-w-[100vw] flex items-center justify-center">
                     <Loader2 size={32} className="text-cosmos-primary animate-spin" />
                 </main>
             </div>
@@ -106,7 +106,7 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
         return (
             <div className="flex min-h-screen bg-cosmos-bg star-bg">
                 <Sidebar />
-                <main className="ml-60 flex-1 p-6 text-center text-cosmos-muted">Homework not found</main>
+                <main className="md:ml-60 flex-1 p-4 md:p-6 w-full max-w-[100vw] text-center text-cosmos-muted">Homework not found</main>
             </div>
         )
     }
@@ -117,7 +117,7 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
     return (
         <div className="flex min-h-screen bg-cosmos-bg star-bg">
             <Sidebar />
-            <main className="ml-60 flex-1 p-6">
+            <main className="md:ml-60 flex-1 p-4 md:p-6 w-full max-w-[100vw]">
                 <Link href="/homework" className="text-cosmos-muted hover:text-cosmos-text text-sm flex items-center gap-1.5 mb-6 transition-colors">
                     <ArrowLeft size={16} /> Back to Homeworks
                 </Link>

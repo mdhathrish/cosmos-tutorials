@@ -54,7 +54,7 @@ export default function StudentsPage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg star-bg">
       <Sidebar />
-      <main className="ml-60 flex-1 p-6">
+      <main className="md:ml-60 flex-1 p-4 md:p-6 w-full max-w-[100vw]">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-display text-2xl font-bold text-cosmos-primary">Students</h1>

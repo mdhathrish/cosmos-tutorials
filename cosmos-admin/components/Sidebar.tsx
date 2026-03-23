@@ -2,9 +2,10 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
 import {
   LayoutDashboard, BookOpen, ClipboardList,
-  CalendarCheck, GraduationCap, Tag, LogOut, Telescope
+  CalendarCheck, GraduationCap, Tag, LogOut, Telescope, Menu, X
 } from 'lucide-react'
 import { createClient } from '../lib/supabase'
 
@@ -22,6 +23,7 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const [isOpen, setIsOpen] = useState(false)
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -30,7 +32,14 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-60 bg-cosmos-surface border-r border-cosmos-border flex flex-col z-50">
+    <>
+      <button onClick={() => setIsOpen(true)} className="md:hidden fixed top-4 right-4 z-40 p-2 bg-cosmos-card border border-cosmos-border rounded-lg text-cosmos-text shadow-sm">
+        <Menu size={20} />
+      </button>
+
+      {isOpen && <div className="md:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={() => setIsOpen(false)} />}
+
+      <aside className={`fixed left-0 top-0 h-screen w-60 bg-cosmos-surface border-r border-cosmos-border flex flex-col z-50 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       {/* Brand */}
       <div className="p-5 border-b border-cosmos-border">
         <div className="flex items-center gap-3">
@@ -52,6 +61,7 @@ export default function Sidebar() {
           <Link
             key={href}
             href={href}
+            onClick={() => setIsOpen(false)}
             className={`nav-item ${pathname.startsWith(href) ? 'active' : ''}`}
           >
             <Icon size={15} />
@@ -75,6 +85,8 @@ export default function Sidebar() {
         </button>
 
       </div>
-    </aside>
+      </aside>
+    </>
   )
 }
+

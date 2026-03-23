@@ -42,7 +42,7 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg star-bg">
       <Sidebar />
-      <main className="ml-60 flex-1 p-8">
+      <main className="md:ml-60 flex-1 p-4 md:p-8 w-full max-w-[100vw]">
         <div className="mb-8">
           <h1 className="font-display text-2xl font-bold text-cosmos-primary">Dashboard</h1>
           <p className="text-cosmos-muted text-sm mt-1">
