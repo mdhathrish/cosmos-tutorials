@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
-import { Loader2, ArrowLeft, Target, Zap, Activity } from 'lucide-react'
+import { Loader2, ArrowLeft, Target, Zap, Activity, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 
@@ -101,14 +101,20 @@ export default function StudentPerformancePage() {
       <Sidebar />
       <main className="md:ml-60 flex-1 p-4 md:p-8 w-full max-w-[100vw]">
         
-        <div className="mb-6 flex items-center gap-3">
-          <Link href="/students" className="p-2 rounded-lg hover:bg-cosmos-surface text-cosmos-muted">
-            <ArrowLeft size={18} />
-          </Link>
-          <div>
-            <h1 className="font-display text-2xl font-bold text-cosmos-text">Student Performance</h1>
-            <p className="text-cosmos-muted text-sm mt-1">Viewing micro-concept mastery for {studentName || '...'}</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/students" className="p-2 rounded-lg hover:bg-cosmos-surface text-cosmos-muted">
+              <ArrowLeft size={18} />
+            </Link>
+            <div>
+              <h1 className="font-display text-2xl font-bold text-cosmos-text">Student Performance</h1>
+              <p className="text-cosmos-muted text-sm mt-1">Viewing micro-concept mastery for {studentName || '...'}</p>
+            </div>
           </div>
+
+          <Link href={`/students/${id}/report`} className="btn-primary flex items-center gap-2 text-sm py-2 px-4">
+            <FileText size={16} /> Generate Report Card
+          </Link>
         </div>
 
         {loading ? (
