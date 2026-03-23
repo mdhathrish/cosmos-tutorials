@@ -25,9 +25,12 @@ export default function TeachersPage() {
   const [loading, setLoading] = useState(true)
 
   const [showModal, setShowModal] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [createForm, setCreateForm] = useState({ full_name: '', email: '', password: '' })
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null)
   const [assignedBatches, setAssignedBatches] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -92,6 +95,29 @@ export default function TeachersPage() {
     setShowModal(false)
   }
 
+  const handleCreateTeacher = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!createForm.full_name || !createForm.email || !createForm.password) return
+
+    setCreating(true)
+    const res = await fetch('/api/create-teacher', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createForm)
+    })
+    const result = await res.json()
+
+    if (result.success) {
+      toast.success('Teacher account created!')
+      setCreateForm({ full_name: '', email: '', password: '' })
+      setShowCreateModal(false)
+      loadData()
+    } else {
+      toast.error(result.error || 'Failed to create teacher')
+    }
+    setCreating(false)
+  }
+
   const toggleBatch = (id: string) => {
     setAssignedBatches(prev => 
       prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]
@@ -108,6 +134,9 @@ export default function TeachersPage() {
             <h1 className="font-display text-2xl font-bold text-cosmos-text">Teachers & Access</h1>
             <p className="text-cosmos-muted text-sm mt-1">Manage staff privileges and access scopes to assigned batches dashboards.</p>
           </div>
+          <button onClick={() => setShowCreateModal(true)} className="btn-primary flex items-center gap-2 text-sm">
+            <UserPlus size={16} /> Add Teacher
+          </button>
         </div>
 
         {loading ? (
@@ -164,6 +193,40 @@ export default function TeachersPage() {
                   {saving && <Loader2 size={12} className="animate-spin" />} Save Changes
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center px-4">
+            <div className="bg-cosmos-card border border-cosmos-border rounded-2xl w-full max-w-sm">
+              <div className="p-5 border-b border-cosmos-border flex items-center justify-between">
+                <h2 className="font-display font-bold text-sm">Add New Teacher</h2>
+                <button onClick={() => setShowCreateModal(false)} className="text-cosmos-muted hover:text-cosmos-text">✕</button>
+              </div>
+              <form onSubmit={handleCreateTeacher} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs text-cosmos-muted mb-1">Full Name *</label>
+                  <input type="text" className="cosmos-input text-sm" placeholder="e.g. John Doe"
+                    value={createForm.full_name} onChange={e => setCreateForm(p => ({ ...p, full_name: e.target.value }))} required />
+                </div>
+                <div>
+                  <label className="block text-xs text-cosmos-muted mb-1">Email Address *</label>
+                  <input type="email" className="cosmos-input text-sm" placeholder="teacher@cosmos.com"
+                    value={createForm.email} onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))} required />
+                </div>
+                <div>
+                  <label className="block text-xs text-cosmos-muted mb-1">Password *</label>
+                  <input type="password" minLength={6} className="cosmos-input text-sm" placeholder="Min 6 characters"
+                    value={createForm.password} onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))} required />
+                </div>
+                <div className="pt-2 flex justify-end gap-3">
+                  <button type="button" onClick={() => setShowCreateModal(false)} className="btn-secondary text-xs">Cancel</button>
+                  <button type="submit" disabled={creating} className="btn-primary text-xs flex items-center gap-2">
+                    {creating && <Loader2 size={12} className="animate-spin" />} Create Account
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
