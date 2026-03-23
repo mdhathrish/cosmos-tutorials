@@ -27,15 +27,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: authError.message }, { status: 400 })
     }
 
-    // 2. Insert into users table
+    // 2. Update the row that the trigger automatically creates
     const { error: dbError } = await supabase
       .from('users')
-      .insert({
-        auth_id: authUser.user.id,
+      .update({
         full_name: full_name.trim(),
         email: email.trim(),
         role: 'teacher'
       })
+      .eq('auth_id', authUser.user.id)
 
     if (dbError) {
       // Cleanup auth user if insert fails
