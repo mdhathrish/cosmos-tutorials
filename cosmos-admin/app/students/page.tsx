@@ -113,6 +113,12 @@ export default function StudentsPage() {
                     </td>
                     <td className="text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <a href={`/students/${s.id}/performance`} target="_blank" rel="noreferrer"
+                          className="p-1.5 rounded-lg hover:bg-cosmos-surface text-cosmos-muted hover:text-cosmos-cyan transition-colors"
+                          title="View Performance"
+                        >
+                          <Eye size={14} />
+                        </a>
                         <button onClick={() => { setEditStudent(s); setShowModal(true) }}
                           className="p-1.5 rounded-lg hover:bg-cosmos-surface text-cosmos-muted hover:text-cosmos-primary transition-colors">
                           <Pencil size={14} />
