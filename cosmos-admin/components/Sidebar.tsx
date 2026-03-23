@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import {
   LayoutDashboard, BookOpen, ClipboardList,
-  CalendarCheck, GraduationCap, Tag, LogOut, Telescope, Menu, X, MessageSquare, CreditCard, Megaphone
+  CalendarCheck, GraduationCap, Tag, LogOut, Telescope, Menu, X, MessageSquare, CreditCard, Megaphone, Calendar
 } from 'lucide-react'
 import { createClient } from '../lib/supabase'
 
@@ -15,6 +15,7 @@ const navItems = [
   { href: '/inbox',       icon: MessageSquare,   label: 'Inbox' },
   { href: '/fees',        icon: CreditCard,      label: 'Fees / Payments' },
   { href: '/notices',     icon: Megaphone,       label: 'Notices Board' },
+  { href: '/calendar',    icon: Calendar,        label: 'Calendar' },
   { href: '/batches',     icon: BookOpen,        label: 'Batches' },
   { href: '/students',    icon: GraduationCap,   label: 'Students' },
   { href: '/marks-entry', icon: ClipboardList,   label: 'Marks Entry' },
