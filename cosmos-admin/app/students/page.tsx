@@ -9,8 +9,9 @@ import toast from 'react-hot-toast'
 
 interface StudentWithBatch extends Student {
   batches?: { batch_name: string; grade: number; subject: string }
-  users?: { email: string | null; full_name: string }
+  users?: { id: string, auth_id: string, email: string | null; full_name: string }
 }
+
 
 export default function StudentsPage() {
   const supabase = createClient()
@@ -24,8 +25,9 @@ export default function StudentsPage() {
   const loadStudents = async () => {
     const { data } = await supabase
       .from('students')
-      .select('*, batches(batch_name, grade, subject), users(email, full_name)')
+      .select('*, batches(batch_name, grade, subject), users(id, auth_id, email, full_name)')
       .eq('is_active', true)
+
       .order('full_name')
     setStudents(data || [])
     setLoading(false)
@@ -143,9 +145,13 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
   const supabase = createClient()
   const [form, setForm] = useState({
     full_name: student?.full_name || '', grade: student?.grade || '',
-    batch_id: student?.batch_id || '', parent_name: '',
-    parent_email: '', parent_password: '',
+    batch_id: student?.batch_id || '', parent_name: student?.users?.full_name || '',
+    parent_email: student?.users?.email || '', parent_password: '',
+    address: student?.address || '', parent_number: student?.parent_number || '',
+    student_number: student?.student_number || '', school_name: student?.school_name || '',
+    school_board: student?.school_board || '',
   })
+
   const [showPass, setShowPass] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -164,14 +170,45 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
     setSaving(true)
 
     if (student) {
+      if (form.parent_email.trim() && student.users?.auth_id) {
+         let shouldUpdateAuth = form.parent_email !== student.users.email || form.parent_password !== '' || form.parent_name !== student.users.full_name
+         if (shouldUpdateAuth) {
+           const res = await fetch('/api/update-parent', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({
+               auth_id: student.users.auth_id,
+               email: form.parent_email.trim().toLowerCase(),
+               password: form.parent_password || undefined,
+               full_name: form.parent_name || undefined
+             })
+           })
+           if (!res.ok) {
+             const result = await res.json()
+             toast.error(result.error)
+             setSaving(false)
+             return
+           }
+         }
+      }
+      if (student.parent_id && form.parent_email.trim() && (form.parent_email !== student.users?.email || form.parent_name !== student.users?.full_name)) {
+         await supabase.from('users').update({
+           email: form.parent_email.trim().toLowerCase(),
+           full_name: form.parent_name || `Parent of ${form.full_name}`
+         }).eq('id', student.parent_id)
+      }
+
       const { error } = await supabase.from('students').update({
         full_name: form.full_name, grade: parseInt(String(form.grade)), batch_id: form.batch_id,
+        address: form.address, parent_number: form.parent_number, student_number: form.student_number,
+        school_name: form.school_name, school_board: form.school_board
       }).eq('id', student.id)
       if (error) { toast.error(friendlyError(error)); setSaving(false); return }
       toast.success('Student updated!'); onSaved(); return
     }
 
     if (!form.parent_email.trim()) { toast.error('Enter parent email'); setSaving(false); return }
+
     if (!form.parent_password.trim()) { toast.error('Set a password'); setSaving(false); return }
     if (form.parent_password.length < 6) { toast.error('Password min 6 characters'); setSaving(false); return }
 
@@ -214,8 +251,11 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
     const { error: studentError } = await supabase.from('students').insert({
       full_name: form.full_name, grade: parseInt(String(form.grade)),
       batch_id: form.batch_id, parent_id: parentId,
+      address: form.address, parent_number: form.parent_number, student_number: form.student_number,
+      school_name: form.school_name, school_board: form.school_board
     })
     if (studentError) { toast.error(friendlyError(studentError)); setSaving(false); return }
+
 
     toast.success(`✅ Student added! Login created.`, { duration: 5000 })
     onSaved()
@@ -252,54 +292,88 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
             </div>
           </div>
 
-          {!student && (
-            <>
-              <div className="border-t border-cosmos-border pt-4">
-                <div className="text-xs font-semibold text-cosmos-muted uppercase tracking-wider mb-3">Parent Login Details</div>
-                <p className="text-xs text-cosmos-muted mb-3 bg-cosmos-surface rounded-lg p-3 border border-cosmos-border">
-                  Send these to the parent via WhatsApp. They use email + password to log in. Free forever.
-                </p>
-              </div>
-              <div>
-                <label className="block text-xs text-cosmos-muted mb-1">Parent Name</label>
-                <input className="cosmos-input" placeholder="e.g. Ramesh Kumar (optional)"
-                  value={form.parent_name} onChange={e => setForm(p => ({ ...p, parent_name: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs text-cosmos-muted mb-1">Parent Email *</label>
-                <input className="cosmos-input" placeholder="parent@gmail.com" type="email"
-                  value={form.parent_email} onChange={e => setForm(p => ({ ...p, parent_email: e.target.value }))} />
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs text-cosmos-muted">Password *</label>
-                  <button onClick={generatePassword} className="text-xs text-cosmos-primary hover:text-cosmos-peach transition-colors">
-                    ✨ Generate password
-                  </button>
-                </div>
-                <div className="relative">
-                  <input className="cosmos-input pr-10" type={showPass ? 'text' : 'password'}
-                    placeholder="Min 6 characters" value={form.parent_password}
-                    onChange={e => setForm(p => ({ ...p, parent_password: e.target.value }))} />
-                  <button onClick={() => setShowPass(p => !p)} type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-cosmos-muted hover:text-cosmos-text">
-                    {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div>
+              <label className="block text-xs text-cosmos-muted mb-1">Student Phone</label>
+              <input className="cosmos-input" placeholder="Optional"
+                value={form.student_number} onChange={e => setForm(p => ({ ...p, student_number: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-xs text-cosmos-muted mb-1">Parent Phone</label>
+              <input className="cosmos-input" placeholder="Optional"
+                value={form.parent_number} onChange={e => setForm(p => ({ ...p, parent_number: e.target.value }))} />
+            </div>
+          </div>
+          <div className="mt-3">
+            <label className="block text-xs text-cosmos-muted mb-1">Address</label>
+            <input className="cosmos-input" placeholder="Home address"
+              value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div>
+              <label className="block text-xs text-cosmos-muted mb-1">School Name</label>
+              <input className="cosmos-input" placeholder="e.g. DPS"
+                value={form.school_name} onChange={e => setForm(p => ({ ...p, school_name: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-xs text-cosmos-muted mb-1">School Board</label>
+              <input className="cosmos-input" placeholder="e.g. CBSE"
+                value={form.school_board} onChange={e => setForm(p => ({ ...p, school_board: e.target.value }))} />
+            </div>
+          </div>
 
-              {form.parent_email && form.parent_password && (
-                <div className="bg-cosmos-green/5 border border-cosmos-green/20 rounded-lg p-3">
-                  <p className="text-xs text-cosmos-green font-semibold mb-1">📲 WhatsApp message to send:</p>
-                  <p className="text-xs text-cosmos-muted font-mono whitespace-pre-wrap">{`Hi! Your Cosmos Tutorials parent app login:\n📧 Email: ${form.parent_email}\n🔑 Password: ${form.parent_password}\n📱 Download: Cosmos Tutorials app`}</p>
-                  <button onClick={() => { navigator.clipboard.writeText(`Hi! Your Cosmos Tutorials parent app login:\n📧 Email: ${form.parent_email}\n🔑 Password: ${form.parent_password}\n📱 Download: Cosmos Tutorials app`); toast.success('Copied!') }}
-                    className="mt-2 text-xs text-cosmos-green hover:text-cosmos-text flex items-center gap-1">
-                    <Copy size={11} /> Copy message
-                  </button>
-                </div>
-              )}
-            </>
+          <div className="border-t border-cosmos-border pt-4">
+            <div className="text-xs font-semibold text-cosmos-muted uppercase tracking-wider mb-3">Parent Login Details</div>
+            {!student && (
+              <p className="text-xs text-cosmos-muted mb-3 bg-cosmos-surface rounded-lg p-3 border border-cosmos-border">
+                Send these to the parent via WhatsApp. They use email + password to log in. Free forever.
+              </p>
+            )}
+            {student && (
+              <p className="text-xs text-cosmos-muted mb-3 bg-cosmos-surface rounded-lg p-3 border border-cosmos-border">
+                Leave password blank if you do not wish to change it.
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs text-cosmos-muted mb-1">Parent Name</label>
+            <input className="cosmos-input" placeholder="e.g. Ramesh Kumar (optional)"
+              value={form.parent_name} onChange={e => setForm(p => ({ ...p, parent_name: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-xs text-cosmos-muted mb-1">Parent Email *</label>
+            <input className="cosmos-input" placeholder="parent@gmail.com" type="email"
+              value={form.parent_email} onChange={e => setForm(p => ({ ...p, parent_email: e.target.value }))} />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-cosmos-muted">{student ? 'New Password' : 'Password *'}</label>
+              <button onClick={generatePassword} className="text-xs text-cosmos-primary hover:text-cosmos-peach transition-colors">
+                ✨ Generate password
+              </button>
+            </div>
+            <div className="relative">
+              <input className="cosmos-input pr-10" type={showPass ? 'text' : 'password'}
+                placeholder="Min 6 characters" value={form.parent_password}
+                onChange={e => setForm(p => ({ ...p, parent_password: e.target.value }))} />
+              <button onClick={() => setShowPass(p => !p)} type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-cosmos-muted hover:text-cosmos-text">
+                {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </div>
+
+          {!student && form.parent_email && form.parent_password && (
+            <div className="bg-cosmos-green/5 border border-cosmos-green/20 rounded-lg p-3">
+              <p className="text-xs text-cosmos-green font-semibold mb-1">📲 WhatsApp message to send:</p>
+              <p className="text-xs text-cosmos-muted font-mono whitespace-pre-wrap">{`Hi! Your Cosmos Tutorials parent app login:\n📧 Email: ${form.parent_email}\n🔑 Password: ${form.parent_password}\n📱 Download: Cosmos Tutorials app`}</p>
+              <button onClick={() => { navigator.clipboard.writeText(`Hi! Your Cosmos Tutorials parent app login:\n📧 Email: ${form.parent_email}\n🔑 Password: ${form.parent_password}\n📱 Download: Cosmos Tutorials app`); toast.success('Copied!') }}
+                className="mt-2 text-xs text-cosmos-green hover:text-cosmos-text flex items-center gap-1">
+                <Copy size={11} /> Copy message
+              </button>
+            </div>
           )}
+
         </div>
         <div className="p-6 border-t border-cosmos-border flex justify-end gap-3 sticky bottom-0 bg-cosmos-card">
           <button onClick={onClose} className="btn-secondary text-sm">Cancel</button>

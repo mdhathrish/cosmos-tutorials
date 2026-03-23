@@ -31,7 +31,13 @@ export interface Student {
   grade: number
   enrollment_date?: string
   is_active: boolean
+  address?: string
+  parent_number?: string
+  student_number?: string
+  school_name?: string
+  school_board?: string
 }
+
 
 export interface MicroTag {
   id: string

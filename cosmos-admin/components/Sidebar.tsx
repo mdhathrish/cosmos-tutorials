@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, BookOpen, ClipboardList,
@@ -33,8 +34,8 @@ export default function Sidebar() {
       {/* Brand */}
       <div className="p-5 border-b border-cosmos-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-gradient flex items-center justify-center shadow-glow-blue">
-            <Telescope size={18} className="text-cosmos-primary" />
+          <div className="w-10 h-10 flex items-center justify-center shadow-glow-blue rounded-xl overflow-hidden">
+            <Image src="/logo.png" alt="Cosmos Logo" width={40} height={40} className="w-full h-full object-cover" />
           </div>
           <div>
             <div className="font-display font-bold text-cosmos-primary text-sm tracking-tight">
