@@ -150,6 +150,7 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
     address: student?.address || '', parent_number: student?.parent_number || '',
     student_number: student?.student_number || '', school_name: student?.school_name || '',
     school_board: student?.school_board || '',
+    monthly_fee: student?.monthly_fee !== undefined ? student.monthly_fee : 2000,
   })
 
   const [showPass, setShowPass] = useState(false)
@@ -201,7 +202,7 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
       const { error } = await supabase.from('students').update({
         full_name: form.full_name, grade: parseInt(String(form.grade)), batch_id: form.batch_id,
         address: form.address, parent_number: form.parent_number, student_number: form.student_number,
-        school_name: form.school_name, school_board: form.school_board
+        school_name: form.school_name, school_board: form.school_board, monthly_fee: parseInt(String(form.monthly_fee)) || 0
       }).eq('id', student.id)
       if (error) { toast.error(friendlyError(error)); setSaving(false); return }
       toast.success('Student updated!'); onSaved(); return
@@ -252,7 +253,7 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
       full_name: form.full_name, grade: parseInt(String(form.grade)),
       batch_id: form.batch_id, parent_id: parentId,
       address: form.address, parent_number: form.parent_number, student_number: form.student_number,
-      school_name: form.school_name, school_board: form.school_board
+      school_name: form.school_name, school_board: form.school_board, monthly_fee: parseInt(String(form.monthly_fee)) || 0
     })
     if (studentError) { toast.error(friendlyError(studentError)); setSaving(false); return }
 
@@ -320,6 +321,11 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
               <input className="cosmos-input" placeholder="e.g. CBSE"
                 value={form.school_board} onChange={e => setForm(p => ({ ...p, school_board: e.target.value }))} />
             </div>
+          </div>
+          <div className="mt-3">
+             <label className="block text-xs text-cosmos-muted mb-1">Monthly Fee (₹)</label>
+             <input className="cosmos-input" placeholder="2000" type="number"
+               value={form.monthly_fee} onChange={e => setForm(p => ({ ...p, monthly_fee: e.target.value as any }))} />
           </div>
 
           <div className="border-t border-cosmos-border pt-4">

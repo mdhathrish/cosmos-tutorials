@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
         // 1. Get all active students
         const { data: students, error: studentError } = await supabaseAdmin
             .from('students')
-            .select('id, grade')
+            .select('id, grade, monthly_fee')
             .eq('is_active', true)
 
         if (studentError) throw studentError
@@ -29,11 +29,10 @@ export async function GET(req: NextRequest) {
         const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
         // 3. Insert fee records for each student
-        // Assuming a flat tuition fee for simplicity (e.g., 2000 INR), or just create the row with 0/pending to filled
         const entries = students.map(s => ({
             student_id: s.id,
             fee_month: currentMonth,
-            amount: 2000, // Placeholder/Standard tuition amount
+            amount: s.monthly_fee !== null && s.monthly_fee !== undefined ? s.monthly_fee : 2000, 
             status: 'pending'
         }))
 
