@@ -159,21 +159,23 @@ export default function FeesDashboard() {
                     </button>
                   )}
                   
-                  {rec.status === 'submitted' && (
+                  {(rec.status === 'submitted' || rec.status === 'pending') && (
                     <div className="ml-auto flex items-center gap-2">
-                       <button 
-                         onClick={() => handleUpdateStatus(rec.id, 'rejected')}
-                         disabled={actioning === rec.id}
-                         className="p-1.5 rounded-md hover:bg-cosmos-red/10 text-cosmos-red"
-                         title="Reject"
-                       >
-                         {actioning === rec.id ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
-                       </button>
+                       {rec.status === 'submitted' && (
+                         <button 
+                           onClick={() => handleUpdateStatus(rec.id, 'rejected')}
+                           disabled={actioning === rec.id}
+                           className="p-1.5 rounded-md hover:bg-cosmos-red/10 text-cosmos-red"
+                           title="Reject"
+                         >
+                           {actioning === rec.id ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+                         </button>
+                       )}
                        <button 
                          onClick={() => handleUpdateStatus(rec.id, 'verified')}
                          disabled={actioning === rec.id}
                          className="p-1.5 rounded-md hover:bg-cosmos-green/10 text-cosmos-green"
-                         title="Approve"
+                         title="Approve (Mark Paid)"
                        >
                          {actioning === rec.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                        </button>
