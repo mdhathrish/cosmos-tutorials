@@ -2,10 +2,10 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, BookOpen, ClipboardList,
-  CalendarCheck, GraduationCap, Tag, LogOut, Telescope, Menu, X, MessageSquare, CreditCard, Megaphone, Calendar
+  CalendarCheck, GraduationCap, Tag, LogOut, Telescope, Menu, X, MessageSquare, CreditCard, Megaphone, Calendar, Users
 } from 'lucide-react'
 import { createClient } from '../lib/supabase'
 
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/notices',     icon: Megaphone,       label: 'Notices Board' },
   { href: '/calendar',    icon: Calendar,        label: 'Calendar' },
   { href: '/batches',     icon: BookOpen,        label: 'Batches' },
+  { href: '/teachers',    icon: Users,           label: 'Teachers & Access' },
   { href: '/students',    icon: GraduationCap,   label: 'Students' },
   { href: '/marks-entry', icon: ClipboardList,   label: 'Marks Entry' },
   { href: '/attendance',  icon: CalendarCheck,   label: 'Attendance' },
@@ -28,12 +29,33 @@ export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [role, setRole] = useState<'admin' | 'teacher' | 'parent' | ''>('')
+
+  useEffect(() => {
+    async function loadRole() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data } = await supabase.from('users').select('role').eq('auth_id', user.id).single()
+        if (data) setRole(data.role as any)
+      }
+    }
+    loadRole()
+  }, [])
 
   const handleSignOut = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
   }
+
+  const filteredItems = navItems.filter(item => {
+    if (role === 'teacher') {
+      // Teachers cannot view Fees, Batches, Teachers, and Concept Tags directly
+      return !['/fees', '/batches', '/teachers', '/micro-tags'].includes(item.href)
+    }
+    return true
+  })
 
   return (
     <>
@@ -61,7 +83,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ href, icon: Icon, label }) => (
+        {filteredItems.map(({ href, icon: Icon, label }) => (
           <Link
             key={href}
             href={href}
