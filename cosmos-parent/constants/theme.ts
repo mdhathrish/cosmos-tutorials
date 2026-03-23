@@ -1,18 +1,41 @@
 // constants/theme.ts — Cosmos Tutorials Premium Brand Palette (V2)
 
-export const Colors = {
-  // Deep Space Backgrounds (Ultra Premium Dark Mode)
-  bg:       '#030409',     // Pure deep space
-  surface:  'rgba(255, 255, 255, 0.03)', // Frosted glass ready
-  card:     '#0A0D1A',     // Elevated card background
-  border:   'rgba(255, 255, 255, 0.08)', // Barely-there borders
+import { useColorScheme } from 'react-native'
 
-  // Primary Brand - Electric Indigo / Nebula
-  primary:  '#6366F1',     // Vibrant Indigo
-  primaryLight: '#818CF8', // Soft Indigo
-  primaryDark:  '#4338CA', // Deep Indigo
+export const LightColors = {
+  bg:       '#F8FAFC',     // Slate 50
+  surface:  'rgba(15, 23, 42, 0.04)', // Tinted Slate
+  card:     '#FFFFFF',
+  border:   'rgba(15, 23, 42, 0.08)',
+  
+  primary:  '#6366F1',
+  primaryLight: '#818CF8',
+  primaryDark:  '#4338CA',
+  blue:     '#3B82F6',
+  orange:   '#EA580C',     // Darkened for contrast on white
+  yellow:   '#D97706',
+  green:    '#059669',
+  red:      '#DC2626',
+  cyan:     '#0891B2',
 
-  // Data / Accent
+  text:     '#0F172A',     // Slate 900
+  muted:    '#64748B',     // Slate 500
+  subtle:   '#94A3B8',     // Slate 400
+  white:    '#FFFFFF',
+  
+  gradientCard: ['#FFFFFF', '#F8FAFC'] as const,
+  gradientPrimary: ['#6366F1', '#4F46E5'] as const,
+}
+
+export const DarkColors = {
+  bg:       '#030409',     // Pure space
+  surface:  'rgba(255, 255, 255, 0.03)', 
+  card:     '#0A0D1A',     
+  border:   'rgba(255, 255, 255, 0.08)', 
+
+  primary:  '#6366F1',
+  primaryLight: '#818CF8',
+  primaryDark:  '#4338CA',
   blue:     '#3B82F6',
   orange:   '#F97316',
   yellow:   '#FBBF24',
@@ -20,15 +43,18 @@ export const Colors = {
   red:      '#EF4444',
   cyan:     '#06B6D4',
 
-  // Typography - Crisp & Minimal
-  text:     '#FAFAFA',     // Brilliant White
-  muted:    '#A1A1AA',     // Zinc 400
-  subtle:   '#52525B',     // Zinc 600
+  text:     '#FAFAFA',
+  muted:    '#A1A1AA',
+  subtle:   '#52525B',
   white:    '#FFFFFF',
   
-  // Gradients presets
   gradientCard: ['#121626', '#090B14'] as const,
   gradientPrimary: ['#6366F1', '#4F46E5'] as const,
+}
+
+export function useColors() {
+  const scheme = useColorScheme()
+  return scheme === 'light' ? LightColors : DarkColors
 }
 
 // V2 Modern Heat Colors for Performance/Attendance

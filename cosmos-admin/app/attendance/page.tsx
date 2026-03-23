@@ -6,7 +6,7 @@ import Sidebar from '@/components/Sidebar'
 import { LogIn, LogOut, AlertCircle, Loader2, ChevronDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-interface Student { id: string; full_name: string; batch_id: string; is_active: boolean }
+interface Student { id: string; full_name: string; batch_id: string; parent_id: string; is_active: boolean }
 interface AttendanceRow { student: Student; log: AttendanceLog | null }
 
 export default function AttendancePage() {
@@ -58,12 +58,32 @@ export default function AttendancePage() {
 
   const handleMarkAbsent = async (studentId: string) => {
     setSaving(studentId)
-    const { data, error } = await supabase.from('attendance_logs')
+    const { data: log, error } = await supabase.from('attendance_logs')
       .upsert({ student_id: studentId, log_date: selectedDate, status: 'absent' }, { onConflict: 'student_id,log_date' })
       .select().single()
     if (error) { toast.error(friendlyError(error)); setSaving(null); return }
-    setRows(prev => prev.map(r => r.student.id === studentId ? { ...r, log: data } : r))
-    toast.success('Marked absent'); setSaving(null)
+    setRows(prev => prev.map(r => r.student.id === studentId ? { ...r, log } : r))
+    toast.success('Marked absent')
+
+    // Trigger Push Notification to parent
+    const student = rows.find(r => r.student.id === studentId)?.student;
+    if (student?.parent_id) {
+        supabase.from('users').select('push_token').eq('id', student.parent_id).not('push_token', 'is', null).single()
+        .then(({ data: parent }) => {
+            if (parent?.push_token) {
+                fetch('/api/send-push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        to: parent.push_token,
+                        title: '⚠️ Attendance Alert',
+                        body: `${student.full_name} was marked ABSENT today.`
+                    })
+                }).catch(e => console.error('Absent push failed:', e))
+            }
+        })
+    }
+    setSaving(null)
   }
 
   const fmt = (ts: string | null) => ts ? new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'

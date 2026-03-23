@@ -1,10 +1,12 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, BookOpen, ClipboardList,
   CalendarCheck, GraduationCap, Tag, LogOut, Telescope
 } from 'lucide-react'
+import { createClient } from '../lib/supabase'
+
 
 const navItems = [
   { href: '/dashboard',   icon: LayoutDashboard, label: 'Dashboard' },
@@ -18,6 +20,14 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
   return (
     <aside className="fixed left-0 top-0 h-screen w-60 bg-cosmos-surface border-r border-cosmos-border flex flex-col z-50">
       {/* Brand */}
@@ -55,10 +65,14 @@ export default function Sidebar() {
           <div className="text-[10px] text-cosmos-subtle uppercase tracking-widest">IIT Foundation</div>
           <div className="text-xs text-cosmos-muted">Grades 8–12 · Hyderabad</div>
         </div>
-        <button className="nav-item w-full text-cosmos-red hover:text-cosmos-red hover:bg-cosmos-red/10">
+        <button 
+          onClick={handleSignOut}
+          className="nav-item w-full text-cosmos-red hover:text-cosmos-red hover:bg-cosmos-red/10"
+        >
           <LogOut size={15} />
           <span className="text-sm font-medium">Sign Out</span>
         </button>
+
       </div>
     </aside>
   )

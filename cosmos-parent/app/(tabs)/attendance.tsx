@@ -2,14 +2,16 @@
 import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native'
 import { supabase, type AttendanceLog } from '../../lib/supabase'
-import { Colors } from '../../constants/theme'
+import { useColors } from '../../constants/theme'
 import { MapPin, CheckCircle, XCircle, Clock, Calendar, ClipboardList } from 'lucide-react-native'
 import Animated, { FadeInDown, FadeIn, FadeInUp } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function AttendanceScreen() {
+  const Colors = useColors()
   const insets = useSafeAreaInsets()
+  const styles = getStyles(Colors)
   const [logs, setLogs] = useState<AttendanceLog[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -65,9 +67,11 @@ export default function AttendanceScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[styles.scroll, { paddingTop: Math.max(insets.top + 20, 60) }]}
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.scroll, { paddingTop: 20 }]}
+
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} tintColor={Colors.primary} />}
     >
       <View style={styles.header}>
@@ -168,11 +172,12 @@ export default function AttendanceScreen() {
           )
         })
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   scroll: { padding: 24, paddingBottom: 100 },
   centered: { justifyContent: 'center', alignItems: 'center', flex: 1 },

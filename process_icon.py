@@ -9,23 +9,26 @@ try:
     
     img = Image.open(input_path).convert("RGBA")
     
+    # Trim transparent/empty space
+    bbox = img.getbbox()
+    if bbox:
+        img = img.crop(bbox)
+
+    
     # 1. Standard App Icon (e.g., iOS static)
-    # Create white background and paste centered
     white_bg = Image.new("RGBA", (1024, 1024), "WHITE")
-    # Resize to have some padding
     img_standard = img.copy()
-    img_standard.thumbnail((800, 800), Image.Resampling.LANCZOS)
+    img_standard.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
     x = (1024 - img_standard.width) // 2
     y = (1024 - img_standard.height) // 2
     white_bg.paste(img_standard, (x, y), img_standard)
     white_bg.save(icon_path, "PNG")
     
     # 2. Android Adaptive Icon Foreground
-    # MUST have a transparent background and leave safe areas outside the center 66%
     transparent_bg = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
     img_adaptive = img.copy()
-    # Android safe area for foreground is 66% of 1024 ~ 680x680px
-    img_adaptive.thumbnail((680, 680), Image.Resampling.LANCZOS)
+    # Boost from 660 to 760 for larger presence in drawer while respecting most safe masks
+    img_adaptive.thumbnail((760, 760), Image.Resampling.LANCZOS)
     ax = (1024 - img_adaptive.width) // 2
     ay = (1024 - img_adaptive.height) // 2
     transparent_bg.paste(img_adaptive, (ax, ay), img_adaptive)

@@ -11,8 +11,9 @@ import toast from 'react-hot-toast'
 interface ScoreRow {
   student_id: string
   student_name: string
-  scores: { [question_id: string]: string } // string for input control
+  scores: { [question_id: string]: 'ungraded' | 'correct' | 'incorrect' }
 }
+
 
 export default function MarksEntryPage() {
   const supabase = createClient()
@@ -73,15 +74,17 @@ export default function MarksEntryPage() {
       setQuestions(qs)
       setStudents(ss)
 
-      // Build score grid
       const rows: ScoreRow[] = ss.map(student => {
-        const scores: { [qid: string]: string } = {}
+        const scores: { [qid: string]: 'ungraded' | 'correct' | 'incorrect' } = {}
         qs.forEach(q => {
           const existing = existingScores.find(s => s.student_id === student.id && s.question_id === q.id)
-          scores[q.id] = existing ? String(existing.marks_obtained) : ''
+          scores[q.id] = existing 
+            ? (existing.is_correct ? 'correct' : 'incorrect') 
+            : 'ungraded'
         })
         return { student_id: student.id, student_name: student.full_name, scores }
       })
+
 
       setScoreRows(rows)
       setLoadingStudents(false)
@@ -89,19 +92,24 @@ export default function MarksEntryPage() {
   }, [selectedTest])
 
   // Handle cell change
-  const handleScoreChange = useCallback((studentIdx: number, questionId: string, value: string) => {
+  const toggleScoreStatus = useCallback((studentIdx: number, questionId: string) => {
     setScoreRows(prev => {
       const next = [...prev]
-      next[studentIdx] = { ...next[studentIdx], scores: { ...next[studentIdx].scores, [questionId]: value } }
+      const current = next[studentIdx].scores[questionId] || 'ungraded'
+      const nextState: 'ungraded' | 'correct' | 'incorrect' = 
+        current === 'ungraded' ? 'correct' :
+        current === 'correct' ? 'incorrect' : 'ungraded'
+      
+      next[studentIdx] = { ...next[studentIdx], scores: { ...next[studentIdx].scores, [questionId]: nextState } }
       return next
     })
-    // Remove from saved if edited
     setSavedCells(prev => {
       const next = new Set(prev)
       next.delete(`${studentIdx}-${questionId}`)
       return next
     })
   }, [])
+
 
   // Keyboard navigation — Tab moves right, then down
   const handleKeyDown = useCallback((e: React.KeyboardEvent, rowIdx: number, colIdx: number) => {
@@ -112,11 +120,11 @@ export default function MarksEntryPage() {
       const nextRow = nextCol >= questions.length ? rowIdx + 1 : rowIdx
       const nextColWrapped = nextCol >= questions.length ? 0 : nextCol
 
-      const cell = gridRef.current?.querySelector<HTMLInputElement>(
+      const cell = gridRef.current?.querySelector<HTMLElement>(
         `[data-row="${nextRow}"][data-col="${nextColWrapped}"]`
       )
       cell?.focus()
-      cell?.select()
+
     }
 
     if (e.key === 'Tab' && e.shiftKey) {
@@ -126,11 +134,11 @@ export default function MarksEntryPage() {
       const prevColWrapped = prevCol < 0 ? questions.length - 1 : prevCol
 
       if (prevRow >= 0) {
-        const cell = gridRef.current?.querySelector<HTMLInputElement>(
+        const cell = gridRef.current?.querySelector<HTMLElement>(
           `[data-row="${prevRow}"][data-col="${prevColWrapped}"]`
         )
         cell?.focus()
-        cell?.select()
+
       }
     }
 
@@ -147,14 +155,15 @@ export default function MarksEntryPage() {
     const upsertData: any[] = []
 
     for (const row of scoreRows) {
-      for (const [question_id, marks_str] of Object.entries(row.scores)) {
-        if (marks_str === '' || marks_str === null) continue
-        const marks = parseFloat(marks_str)
-        if (isNaN(marks)) continue
+      for (const [question_id, status] of Object.entries(row.scores)) {
+        if (status === 'ungraded') continue
+        const maxMarks = questions.find(q => q.id === question_id)?.max_marks || 1
         upsertData.push({
           student_id: row.student_id,
+          test_id: selectedTest,
           question_id,
-          marks_obtained: marks,
+          marks_obtained: status === 'correct' ? maxMarks : 0,
+          is_correct: status === 'correct',
         })
       }
     }
@@ -162,6 +171,7 @@ export default function MarksEntryPage() {
     const { error } = await supabase
       .from('student_scores')
       .upsert(upsertData, { onConflict: 'student_id,question_id' })
+
 
     if (error) {
       toast.error(friendlyError(error))
@@ -171,6 +181,34 @@ export default function MarksEntryPage() {
       const savedSet = new Set<string>()
       scoreRows.forEach((_, ri) => questions.forEach(q => savedSet.add(`${ri}-${q.id}`)))
       setSavedCells(savedSet)
+
+      // Trigger Push Notification to affected parents
+      const studentIds = [...new Set(upsertData.map(d => d.student_id))];
+      if (studentIds.length > 0) {
+        supabase.from('students').select('parent_id').in('id', studentIds)
+        .then(({ data: students }) => {
+            const parentIds = students?.map(s => s.parent_id).filter(Boolean) || [];
+            if (parentIds.length > 0) {
+                supabase.from('users').select('push_token').in('id', parentIds).not('push_token', 'is', null)
+                .then(({ data: parents }) => {
+                    const tokens = parents?.map(p => p.push_token).filter(Boolean) || [];
+                    const testName = tests.find(t => t.id === selectedTest)?.test_name || 'your test';
+                    
+                    if (tokens.length > 0) {
+                        fetch('/api/send-push', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(tokens.map(t => ({
+                                to: t,
+                                title: '📊 Test Results Published',
+                                body: `Marks/Grading for "${testName}" have been uploaded.`
+                            })))
+                        }).catch(e => console.error('Marks push failed:', e));
+                    }
+                });
+            }
+        });
+      }
     }
     setSaving(false)
   }
@@ -268,9 +306,13 @@ export default function MarksEntryPage() {
               </thead>
               <tbody>
                 {scoreRows.map((row, ri) => {
-                  const total = Object.values(row.scores).reduce((sum, v) => sum + (parseFloat(v) || 0), 0)
+                  const total = Object.entries(row.scores).reduce((sum, [qid, status]) => {
+                    const q = questions.find(qq => qq.id === qid)
+                    return sum + (status === 'correct' ? (q?.max_marks || 0) : 0)
+                  }, 0)
                   const maxTotal = questions.reduce((sum, q) => sum + q.max_marks, 0)
                   const pct = maxTotal > 0 ? (total / maxTotal) * 100 : 0
+
 
                   return (
                     <tr key={row.student_id} className="border-b border-cosmos-border/50 hover:bg-cosmos-surface/30">
@@ -280,39 +322,32 @@ export default function MarksEntryPage() {
                       {questions.map((q, ci) => {
                         const cellKey = `${ri}-${q.id}`
                         const isSaved = savedCells.has(cellKey)
-                        const val = row.scores[q.id]
-                        const isOver = val !== '' && parseFloat(val) > q.max_marks
+                        const status = row.scores[q.id] || 'ungraded'
 
                         return (
                           <td key={q.id} className="py-1 px-1 text-center">
                             <div className="relative flex items-center justify-center">
-                              <input
-                                type="number"
-                                min={0}
-                                max={q.max_marks}
-                                step={0.5}
-                                value={val}
-                                onChange={e => handleScoreChange(ri, q.id, e.target.value)}
+                              <button
+                                onClick={() => toggleScoreStatus(ri, q.id)}
                                 onKeyDown={e => handleKeyDown(e, ri, ci)}
                                 data-row={ri}
                                 data-col={ci}
-                                className={`marks-input ${
-                                  isOver ? 'border-cosmos-red ring-cosmos-red focus:border-cosmos-red' :
-                                  isSaved ? 'border-cosmos-green/50' : ''
-                                }`}
-                                placeholder="—"
+                                className={`w-8 h-8 rounded-lg border-2 transition-all flex items-center justify-center ${
+                                  status === 'correct' ? 'bg-cosmos-green/10 border-cosmos-green text-cosmos-green hover:bg-cosmos-green/20' :
+                                  status === 'incorrect' ? 'bg-cosmos-red/10 border-cosmos-red text-cosmos-red hover:bg-cosmos-red/20' :
+                                  'bg-cosmos-surface/50 border-cosmos-border/60 hover:border-cosmos-muted/50 text-cosmos-muted/60'
+                                } ${isSaved ? 'shadow-[0_0_8px_rgba(34,197,94,0.2)]' : ''}`}
                                 aria-label={`${row.student_name} Q${q.question_number}`}
-                              />
-                              {isSaved && (
-                                <CheckCircle size={10} className="absolute -top-1 -right-1 text-cosmos-green" />
-                              )}
-                              {isOver && (
-                                <AlertTriangle size={10} className="absolute -top-1 -right-1 text-cosmos-red" />
-                              )}
+                              >
+                                {status === 'correct' && <CheckCircle size={14} className="stroke-[2.5]" />}
+                                {status === 'incorrect' && <div className="text-sm font-bold">✕</div>}
+                                {status === 'ungraded' && <div className="text-xs font-mono">/{q.max_marks}</div>}
+                              </button>
                             </div>
                           </td>
                         )
                       })}
+
                       <td className="py-2 px-4 text-center">
                         <span className={`font-bold font-mono text-sm ${
                           pct >= 75 ? 'text-cosmos-green' :

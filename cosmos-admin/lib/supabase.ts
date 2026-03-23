@@ -63,6 +63,7 @@ export interface StudentScore {
   student_id: string
   question_id: string
   marks_obtained: number
+  is_correct: boolean
 }
 
 export interface AttendanceLog {

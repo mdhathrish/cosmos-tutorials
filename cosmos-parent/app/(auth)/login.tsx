@@ -5,14 +5,17 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert
 } from 'react-native'
 import { supabase } from '../../lib/supabase'
-import { Colors } from '../../constants/theme'
+import { useColors } from '../../constants/theme'
 import { LinearGradient } from 'expo-linear-gradient'
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { Telescope, Eye, EyeOff, LogIn, Info } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function LoginScreen() {
+  const Colors = useColors()
   const insets = useSafeAreaInsets()
+  const styles = getStyles(Colors)
+
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -132,7 +135,7 @@ export default function LoginScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   scroll:    { flexGrow: 1, justifyContent: 'center', padding: 24 },
 

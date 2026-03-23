@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { supabase } from '../lib/supabase'
-import { Colors } from '../constants/theme'
+import { useColors } from '../constants/theme'
 import { View, ActivityIndicator } from 'react-native'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 import { 
@@ -20,6 +20,8 @@ export default function RootLayout() {
   const segments = useSegments()
   const [sessionReady, setSessionReady] = useState(false)
   const [session, setSession] = useState<any>(null)
+  
+  const Colors = useColors()
 
   usePushNotifications(session?.user?.id)
 
@@ -66,7 +68,7 @@ export default function RootLayout() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.bg }}>
-      <StatusBar style="light" backgroundColor={Colors.bg} />
+      <StatusBar style={Colors.bg === '#030409' ? 'light' : 'dark'} backgroundColor={Colors.bg} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />

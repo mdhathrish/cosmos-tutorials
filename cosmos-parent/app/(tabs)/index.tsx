@@ -2,17 +2,20 @@
 import { useEffect, useState } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  ActivityIndicator, RefreshControl
+  ActivityIndicator, RefreshControl, Image
 } from 'react-native'
 import { supabase, type Student, type AttendanceLog } from '../../lib/supabase'
-import { Colors } from '../../constants/theme'
+import { useColors } from '../../constants/theme'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Telescope, LogOut, Clock, XCircle, CheckCircle, Flame } from 'lucide-react-native'
+import { LogOut, Clock, XCircle, CheckCircle, Flame } from 'lucide-react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function HomeScreen() {
+  const Colors = useColors()
   const insets = useSafeAreaInsets()
+  const styles = getStyles(Colors)
+
   const [student, setStudent] = useState<Student | null>(null)
   const [todayLog, setTodayLog] = useState<AttendanceLog | null>(null)
   const [recentLogs, setRecentLogs] = useState<AttendanceLog[]>([])
@@ -97,7 +100,11 @@ export default function HomeScreen() {
   }
 
   const greetingHour = new Date().getHours()
-  const greeting = greetingHour < 12 ? 'Good morning' : greetingHour < 17 ? 'Good afternoon' : 'Good evening'
+  const greeting = 
+    greetingHour >= 5 && greetingHour < 12 ? 'Good morning' : 
+    greetingHour >= 12 && greetingHour < 17 ? 'Good afternoon' : 
+    greetingHour >= 17 && greetingHour < 21 ? 'Good evening' : 'Good night'
+
 
   if (loading) {
     return (
@@ -108,16 +115,11 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[styles.scroll, { paddingTop: Math.max(insets.top + 20, 60) }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} tintColor={Colors.primary} />}
-    >
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Fixed Header outside ScrollView prevents Notch bleed overlapping */}
       <View style={styles.header}>
         <View style={styles.headerBrand}>
-          <View style={styles.iconBox}>
-            <Telescope color={Colors.primary} size={22} strokeWidth={2.5} />
-          </View>
+          <Image source={require('../../assets/icon.png')} style={styles.logoImage} />
           <View>
             <Text style={styles.brandName}>Cosmos</Text>
             <Text style={styles.brandSub}>Parent Portal</Text>
@@ -128,131 +130,143 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.greeting}>{greeting}, {userName.split(' ')[0]}</Text>
+      <ScrollView
+        style={styles.scrollWrapper}
+        contentContainerStyle={[
+          styles.scroll, 
+          { 
+            paddingBottom: Math.max(insets.bottom + 110, 110) 
+          }
+        ]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} tintColor={Colors.primary} />}
+      >
+        <Text style={styles.greeting}>{greeting}, {userName.split(' ')[0]}</Text>
 
-      {student && (
-        <Animated.View entering={FadeInDown.duration(600).springify()}>
-          <LinearGradient colors={Colors.gradientCard} style={styles.studentCard} start={{x: 0, y: 0}} end={{x: 1, y: 1}}>
-            <LinearGradient colors={Colors.gradientPrimary} style={styles.studentAvatar}>
-              <Text style={styles.studentAvatarText}>{student.full_name[0].toUpperCase()}</Text>
-            </LinearGradient>
-            <View style={styles.studentInfo}>
-              <Text style={styles.studentName}>{student.full_name}</Text>
-              <Text style={styles.studentMeta}>Grade {student.grade} · {student.batches?.subject}</Text>
-              <Text style={styles.studentBatch}>{student.batches?.batch_name}</Text>
-            </View>
-            <View style={styles.timingBadge}>
-              <Text style={styles.timingText}>
-                {student.batches?.timing_start?.slice(0, 5)} – {student.batches?.timing_end?.slice(0, 5)}
-              </Text>
-            </View>
-          </LinearGradient>
-        </Animated.View>
-      )}
-
-      <Animated.View entering={FadeInDown.duration(700).springify().delay(100)}>
-        <Text style={styles.sectionTitle}>Today&apos;s Status</Text>
-        <View style={[styles.attendanceCard,
-          todayLog?.status === 'present' ? styles.attendancePresent :
-          todayLog?.status === 'absent' ? styles.attendanceAbsent :
-          styles.attendanceUnknown
-        ]}>
-          {!todayLog ? (
-            <View style={styles.attendanceRow}>
-              <Clock color={Colors.orange} size={32} strokeWidth={2} />
-              <View>
-                <Text style={styles.attendanceStatus}>Not Marked Yet</Text>
-                <Text style={styles.attendanceSubtext}>Session may not have started</Text>
+        {student && (
+          <Animated.View entering={FadeInDown.duration(600).springify()}>
+            <LinearGradient colors={Colors.gradientCard} style={styles.studentCard} start={{x: 0, y: 0}} end={{x: 1, y: 1}}>
+              <LinearGradient colors={Colors.gradientPrimary} style={styles.studentAvatar}>
+                <Text style={styles.studentAvatarText}>{student.full_name[0].toUpperCase()}</Text>
+              </LinearGradient>
+              <View style={styles.studentInfo}>
+                <Text style={styles.studentName}>{student.full_name}</Text>
+                <Text style={styles.studentMeta}>Grade {student.grade} · {student.batches?.subject}</Text>
+                <Text style={styles.studentBatch}>{student.batches?.batch_name}</Text>
               </View>
-            </View>
-          ) : todayLog.status === 'absent' ? (
-            <View style={styles.attendanceRow}>
-              <XCircle color={Colors.red} size={32} strokeWidth={2} />
-              <View>
-                <Text style={[styles.attendanceStatus, { color: Colors.red }]}>Absent Today</Text>
-                <Text style={styles.attendanceSubtext}>
-                  {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
+              <View style={styles.timingBadge}>
+                <Text style={styles.timingText}>
+                  {student.batches?.timing_start?.slice(0, 5)} – {student.batches?.timing_end?.slice(0, 5)}
                 </Text>
               </View>
-            </View>
-          ) : (
-            <View>
+            </LinearGradient>
+          </Animated.View>
+        )}
+
+        <Animated.View entering={FadeInDown.duration(700).springify().delay(100)}>
+          <Text style={styles.sectionTitle}>Today&apos;s Status</Text>
+          <View style={[styles.attendanceCard,
+            todayLog?.status === 'present' ? styles.attendancePresent :
+            todayLog?.status === 'absent' ? styles.attendanceAbsent :
+            styles.attendanceUnknown
+          ]}>
+            {!todayLog ? (
               <View style={styles.attendanceRow}>
-                <CheckCircle color={Colors.green} size={32} strokeWidth={2} />
+                <Clock color={Colors.orange} size={32} strokeWidth={2} />
                 <View>
-                  <Text style={[styles.attendanceStatus, { color: Colors.green }]}>Present Today</Text>
+                  <Text style={styles.attendanceStatus}>Not Marked Yet</Text>
+                  <Text style={styles.attendanceSubtext}>Session may not have started</Text>
+                </View>
+              </View>
+            ) : todayLog.status === 'absent' ? (
+              <View style={styles.attendanceRow}>
+                <XCircle color={Colors.red} size={32} strokeWidth={2} />
+                <View>
+                  <Text style={[styles.attendanceStatus, { color: Colors.red }]}>Absent Today</Text>
                   <Text style={styles.attendanceSubtext}>
                     {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
                   </Text>
                 </View>
               </View>
-              <View style={styles.timingRow}>
-                <View style={styles.timingChip}>
-                  <Text style={styles.timingChipLabel}>CHECK IN</Text>
-                  <Text style={styles.timingChipTime}>{formatTime(todayLog.check_in_time)}</Text>
+            ) : (
+              <View>
+                <View style={styles.attendanceRow}>
+                  <CheckCircle color={Colors.green} size={32} strokeWidth={2} />
+                  <View>
+                    <Text style={[styles.attendanceStatus, { color: Colors.green }]}>Present Today</Text>
+                    <Text style={styles.attendanceSubtext}>
+                      {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    </Text>
+                  </View>
                 </View>
-                {todayLog.check_out_time ? (
-                  <View style={[styles.timingChip, styles.timingChipOut]}>
-                    <Text style={[styles.timingChipLabel, { color: Colors.cyan }]}>CHECK OUT</Text>
-                    <Text style={[styles.timingChipTime, { color: Colors.cyan }]}>{formatTime(todayLog.check_out_time)}</Text>
+                <View style={styles.timingRow}>
+                  <View style={styles.timingChip}>
+                    <Text style={styles.timingChipLabel}>CHECK IN</Text>
+                    <Text style={styles.timingChipTime}>{formatTime(todayLog.check_in_time)}</Text>
                   </View>
-                ) : (
-                  <View style={[styles.timingChip, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-                    <Text style={[styles.timingChipLabel, { color: Colors.muted }]}>CHECK OUT</Text>
-                    <Text style={[styles.timingChipTime, { color: Colors.muted }]}>In session…</Text>
-                  </View>
-                )}
+                  {todayLog.check_out_time ? (
+                    <View style={[styles.timingChip, styles.timingChipOut]}>
+                      <Text style={[styles.timingChipLabel, { color: Colors.cyan }]}>CHECK OUT</Text>
+                      <Text style={[styles.timingChipTime, { color: Colors.cyan }]}>{formatTime(todayLog.check_out_time)}</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.timingChip, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+                      <Text style={[styles.timingChipLabel, { color: Colors.muted }]}>CHECK OUT</Text>
+                      <Text style={[styles.timingChipTime, { color: Colors.muted }]}>In session…</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
-          )}
-        </View>
-      </Animated.View>
+            )}
+          </View>
+        </Animated.View>
 
-      <Animated.View entering={FadeInDown.duration(800).springify().delay(200)}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Attendance Streak</Text>
-          <Flame color={Colors.primary} size={16} />
-        </View>
-        
-        <View style={styles.streakRow}>
-          {Array.from({ length: 7 }, (_, i) => {
-            const d = new Date()
-            d.setDate(d.getDate() - (6 - i))
-            const ds = d.toISOString().split('T')[0]
-            const log = recentLogs.find(l => l.log_date === ds)
-            const isToday = ds === today
-            
-            let dotColor = Colors.muted
-            if (log?.status === 'present') dotColor = Colors.green
-            if (log?.status === 'absent') dotColor = Colors.red
+        <Animated.View entering={FadeInDown.duration(800).springify().delay(200)}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Attendance Streak</Text>
+            <Flame color={Colors.primary} size={16} />
+          </View>
+          
+          <View style={styles.streakRow}>
+            {Array.from({ length: 7 }, (_, i) => {
+              const d = new Date()
+              d.setDate(d.getDate() - (6 - i))
+              const ds = d.toISOString().split('T')[0]
+              const log = recentLogs.find(l => l.log_date === ds)
+              const isToday = ds === today
+              
+              let dotColor = Colors.muted
+              if (log?.status === 'present') dotColor = Colors.green
+              if (log?.status === 'absent') dotColor = Colors.red
 
-            return (
-              <View key={ds} style={[styles.streakDay, isToday && styles.streakDayToday]}>
-                <Text style={styles.streakDayName}>{d.toLocaleDateString('en-IN', { weekday: 'narrow' })}</Text>
-                <Text style={styles.streakDayNum}>{d.getDate()}</Text>
-                <View style={[styles.streakDotRecord, { backgroundColor: dotColor }]} />
-              </View>
-            )
-          })}
-        </View>
-      </Animated.View>
-    </ScrollView>
+              return (
+                <View key={ds} style={[styles.streakDay, isToday && styles.streakDayToday]}>
+                  <Text style={styles.streakDayName}>{d.toLocaleDateString('en-IN', { weekday: 'narrow' })}</Text>
+                  <Text style={styles.streakDayNum}>{d.getDate()}</Text>
+                  <View style={[styles.streakDotRecord, { backgroundColor: dotColor }]} />
+                </View>
+              )
+            })}
+          </View>
+        </Animated.View>
+      </ScrollView>
+    </View>
   )
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  scroll: { padding: 24, paddingBottom: 100 },
+  scrollWrapper: { flex: 1 },
+  scroll: { padding: 24, paddingTop: 10 },
   centered: { justifyContent: 'center', alignItems: 'center' },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: Colors.border, backgroundColor: Colors.bg },
   headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
+  logoImage: { width: 48, height: 48, borderRadius: 12 },
   brandName: { fontSize: 18, fontFamily: 'Outfit_700Bold', color: Colors.text, letterSpacing: -0.5 },
   brandSub: { fontSize: 12, fontFamily: 'Outfit_500Medium', color: Colors.primaryLight },
   signOutBtn: { padding: 10, borderRadius: 12, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
 
-  greeting: { fontSize: 28, fontFamily: 'Outfit_700Bold', color: Colors.text, marginBottom: 24, letterSpacing: -0.5 },
+  greeting: { fontSize: 28, fontFamily: 'Outfit_700Bold', color: Colors.text, marginVertical: 24, letterSpacing: -0.5 },
 
   studentCard: {
     borderRadius: 24, borderWidth: 1,
@@ -274,7 +288,7 @@ const styles = StyleSheet.create({
   timingText: { fontSize: 12, color: Colors.primaryLight, fontFamily: 'Outfit_600SemiBold' },
 
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  sectionTitle: { fontSize: 14, fontFamily: 'Outfit_700Bold', color: Colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 16 },
+  sectionTitle: { fontSize: 14, fontFamily: 'Outfit_700Bold', color: Colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
 
   attendanceCard: { borderRadius: 24, padding: 20, borderWidth: 1, marginBottom: 32 },
   attendancePresent: { backgroundColor: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.2)' },

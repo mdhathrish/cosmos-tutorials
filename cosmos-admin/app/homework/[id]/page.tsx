@@ -49,19 +49,34 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
             .single()
 
         if (parent?.push_token) {
-            await fetch('https://exp.host/--/api/v2/push/send', {
-                method: 'POST',
-                headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    to: parent.push_token,
-                    sound: 'default',
-                    title: '⚠️ Homework Alert',
-                    body: `${sub.student.full_name} did not complete homework: "${hw.title}". Please ensure it gets done.`,
-                }),
-            }).catch(e => console.error('Push notification failed:', e))
-            toast.success(`Marked as Not Done. Notify sent to parent.`)
+            try {
+                // Call local Next.js Backend Proxy to bypass CORS limits
+                const res = await fetch('/api/send-push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        to: parent.push_token,
+                        title: '⚠️ Homework Alert',
+                        body: `${sub.student.full_name} did not complete homework: "${hw.title}". Please ensure it gets done.`,
+                    }),
+                })
+                
+                const resData = await res.json();
+                
+                if (resData.errors) {
+                    toast.error(`Expo Error: ${resData.errors[0].message}`);
+                } else if (resData.data && resData.data.status === 'error') {
+                    toast.error(`Push Failed: ${resData.data.message}`);
+                } else if (resData.error) {
+                    toast.error(`Server Error: ${resData.error}`);
+                } else {
+                    toast.success(`Marked as Not Done. Notify sent to parent.`);
+                }
+            } catch (e: any) {
+                toast.error(`Network Error: ${e.message}`);
+            }
         } else {
-            toast.error('Student has no registered parent push token!)')
+            toast.error('Student has no registered parent push token!')
         }
 
         load()

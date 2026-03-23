@@ -130,26 +130,75 @@ function HomeworkModal({ batches, onClose, onSaved }: any) {
         due_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
     })
     const [saving, setSaving] = useState(false)
+    const [file, setFile] = useState<File | null>(null)
 
     const handleSave = async () => {
         if (!form.batch_id || !form.title || !form.due_date) { toast.error('Fill all required fields'); return }
         setSaving(true)
+
+        let attachmentUrl = null;
+        if (file) {
+            const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('homework-attachments')
+                .upload(fileName, file);
+
+            if (uploadError) {
+                toast.error(`Upload failed: ${uploadError.message}`);
+                setSaving(false);
+                return;
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('homework-attachments')
+                .getPublicUrl(fileName);
+            
+            attachmentUrl = publicUrl;
+        }
+
         const { data: hw, error } = await supabase.from('homework').insert({
             batch_id: form.batch_id,
             title: form.title,
             description: form.description || null,
             due_date: form.due_date,
+            attachment_url: attachmentUrl
         }).select().single()
+
         if (error) { toast.error(friendlyError(error)); setSaving(false); return }
 
         // Auto-create pending submissions for all students in the batch
-        const { data: students } = await supabase.from('students').select('id').eq('batch_id', form.batch_id).eq('is_active', true)
+        const { data: students } = await supabase.from('students').select('id, parent_id').eq('batch_id', form.batch_id).eq('is_active', true)
         if (students && students.length > 0) {
             await supabase.from('homework_submissions').insert(
                 students.map(s => ({ homework_id: hw.id, student_id: s.id, status: 'pending' }))
             )
+
+            // Trigger Push Notifications to all parents in batch
+            const parentIds = students.map(s => s.parent_id).filter(Boolean)
+            if (parentIds.length > 0) {
+                const { data: parents } = await supabase
+                    .from('users')
+                    .select('push_token')
+                    .in('id', parentIds)
+                    .not('push_token', 'is', null);
+
+                const tokens = parents?.map(p => p.push_token).filter(Boolean) || [];
+                const batchName = batches.find((b: { id: string }) => b.id === form.batch_id)?.batch_name || 'your batch';
+
+                if (tokens.length > 0) {
+                    fetch('/api/send-push', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(tokens.map(t => ({
+                            to: t,
+                            title: '📄 New Homework Assigned',
+                            body: `New homework for ${batchName}: "${form.title}". Due: ${form.due_date}`
+                        })))
+                    }).catch(e => console.error('Homework push failed:', e));
+                }
+            }
         }
-        toast.success(`Homework assigned to ${students?.length || 0} students!`)
+        toast.success(`Homework assigned and notifications sent to ${students?.length || 0} students!`)
         onSaved()
     }
 
@@ -177,6 +226,12 @@ function HomeworkModal({ batches, onClose, onSaved }: any) {
                         <label className="block text-xs text-cosmos-muted mb-1">Description</label>
                         <textarea className="cosmos-input resize-none" rows={3} placeholder="Additional instructions (optional)…"
                             value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+                    </div>
+                    <div>
+                        <label className="block text-xs text-cosmos-muted mb-1">Attachment (Document / PDF)</label>
+                        <input type="file" accept="application/pdf" className="cosmos-input file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-cosmos-surface file:text-cosmos-text hover:file:bg-cosmos-border cursor-pointer" 
+                            onChange={e => setFile(e.target.files?.[0] || null)} />
+                        {file && <p className="text-xs text-cosmos-green mt-1">✓ {file.name}</p>}
                     </div>
                     <div>
                         <label className="block text-xs text-cosmos-muted mb-1">Due Date <span className="text-cosmos-red">*</span></label>
