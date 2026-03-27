@@ -59,13 +59,21 @@ export default function Sidebar() {
 
   return (
     <>
-      <button onClick={() => setIsOpen(true)} className="md:hidden fixed top-4 right-4 z-40 p-2 bg-cosmos-card border border-cosmos-border rounded-lg text-cosmos-text shadow-sm">
+      <button 
+        onClick={() => setIsOpen(true)} 
+        className="md:hidden fixed top-4 left-4 z-[60] p-2.5 bg-white border border-cosmos-border rounded-xl text-cosmos-primary shadow-lg active:scale-95 transition-all"
+      >
         <Menu size={20} />
       </button>
 
-      {isOpen && <div className="md:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={() => setIsOpen(false)} />}
+      {isOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-slate-900/60 z-[70] backdrop-blur-md transition-opacity duration-300" 
+          onClick={() => setIsOpen(false)} 
+        />
+      )}
 
-      <aside className={`fixed left-0 top-0 h-screen w-60 bg-cosmos-surface border-r border-cosmos-border flex flex-col z-50 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <aside className={`fixed left-0 top-0 h-screen w-64 bg-white border-r border-cosmos-border flex flex-col z-[80] transition-transform duration-500 ease-out shadow-2xl md:shadow-none ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       {/* Brand */}
       <div className="p-5 border-b border-cosmos-border">
         <div className="flex items-center gap-3">

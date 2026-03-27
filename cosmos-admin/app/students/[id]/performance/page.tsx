@@ -99,7 +99,7 @@ export default function StudentPerformancePage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg">
       <Sidebar />
-      <main className="md:ml-60 flex-1 p-4 md:p-8 w-full max-w-[100vw]">
+      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
         
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">

@@ -107,7 +107,7 @@
     @apply text-left py-3 px-4 text-cosmos-muted font-semibold uppercase tracking-wider text-xs;
   }
   .cosmos-table tbody tr {
-    @apply border-b border-cosmos-border/50 hover:bg-cosmos-surface/50 transition-colors;
+    @apply border-b border-cosmos-border/50 hover:bg-cosmos-primary/[0.03] transition-colors;
   }
   .cosmos-table tbody td { @apply py-3 px-4; }
 

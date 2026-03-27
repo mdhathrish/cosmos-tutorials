@@ -54,13 +54,13 @@ export default function StudentsPage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg star-bg">
       <Sidebar />
-      <main className="md:ml-60 flex-1 p-4 md:p-6 w-full max-w-[100vw]">
-        <div className="flex items-center justify-between mb-6">
+      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="font-display text-2xl font-bold text-cosmos-primary">Students</h1>
             <p className="text-cosmos-muted text-sm mt-0.5">{students.length} active students</p>
           </div>
-          <button onClick={() => { setEditStudent(null); setShowModal(true) }} className="btn-primary flex items-center gap-2 text-sm">
+          <button onClick={() => { setEditStudent(null); setShowModal(true) }} className="btn-primary flex items-center justify-center gap-2 text-sm w-full sm:w-auto">
             <UserPlus size={15} /> Add Student
           </button>
         </div>
@@ -83,8 +83,8 @@ export default function StudentsPage() {
             <Loader2 size={28} className="text-cosmos-primary animate-spin" />
           </div>
         ) : (
-          <div className="cosmos-card p-0 overflow-hidden">
-            <table className="cosmos-table">
+          <div className="cosmos-card p-0 overflow-x-auto">
+            <table className="cosmos-table min-w-[700px]">
               <thead>
                 <tr>
                   <th>Student</th><th>Grade</th><th>Batch</th>
@@ -275,14 +275,14 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
           <h2 className="font-display font-bold text-cosmos-primary">{student ? 'Edit Student' : 'Add New Student'}</h2>
           <button onClick={onClose} className="text-cosmos-muted hover:text-cosmos-text">✕</button>
         </div>
-        <div className="p-6 space-y-4">
+         <div className="p-6 space-y-4">
           <div className="text-xs font-semibold text-cosmos-muted uppercase tracking-wider">Student Details</div>
           <div>
             <label className="block text-xs text-cosmos-muted mb-1">Full Name *</label>
             <input className="cosmos-input" placeholder="Student's full name"
               value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-cosmos-muted mb-1">Grade *</label>
               <select className="cosmos-input" value={form.grade} onChange={e => setForm(p => ({ ...p, grade: e.target.value }))}>
@@ -299,7 +299,7 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mt-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
             <div>
               <label className="block text-xs text-cosmos-muted mb-1">Student Phone</label>
               <input className="cosmos-input" placeholder="Optional"
@@ -316,7 +316,7 @@ function StudentModal({ batches, student, onClose, onSaved }: any) {
             <input className="cosmos-input" placeholder="Home address"
               value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-2 gap-3 mt-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
             <div>
               <label className="block text-xs text-cosmos-muted mb-1">School Name</label>
               <input className="cosmos-input" placeholder="e.g. DPS"

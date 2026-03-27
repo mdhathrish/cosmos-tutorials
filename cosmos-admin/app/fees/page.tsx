@@ -27,9 +27,21 @@ export default function FeesDashboard() {
   
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null)
   const [actioning, setActioning] = useState<string | null>(null)
+  const [upiId, setUpiId] = useState('')
+  const [payeeName, setPayeeName] = useState('')
+  const [updatingUpi, setUpdatingUpi] = useState(false)
 
   useEffect(() => {
     loadRecords()
+    // Load config
+    supabase.from('app_settings').select('*').in('key', ['upi_id', 'upi_payee_name']).then(({ data }) => {
+      if (data) {
+        const id = data.find(d => d.key === 'upi_id')?.value
+        const name = data.find(d => d.key === 'upi_payee_name')?.value
+        if (id) setUpiId(id)
+        if (name) setPayeeName(name)
+      }
+    })
   }, [filterStatus])
 
   async function loadRecords() {
@@ -70,6 +82,20 @@ export default function FeesDashboard() {
     setActioning(null)
   }
 
+  const handleUpdateUpi = async () => {
+    if (!upiId.trim()) return
+    setUpdatingUpi(true)
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert([
+        { key: 'upi_id', value: upiId.trim() },
+        { key: 'upi_payee_name', value: payeeName.trim() }
+      ])
+    if (error) toast.error('Failed to update settings')
+    else toast.success('Payment settings updated!')
+    setUpdatingUpi(false)
+  }
+
   const filteredRecords = records.filter(r => 
     r.students?.full_name?.toLowerCase().includes(search.toLowerCase())
   )
@@ -90,9 +116,9 @@ export default function FeesDashboard() {
   }
 
   return (
-    <div className="flex min-h-screen bg-cosmos-bg">
+    <div className="flex min-h-screen bg-cosmos-bg star-bg">
       <Sidebar />
-      <main className="md:ml-60 flex-1 p-4 md:p-8 w-full max-w-[100vw]">
+      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
         
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -122,6 +148,39 @@ export default function FeesDashboard() {
               <option value="rejected">Rejected</option>
               <option value="pending">Pending</option>
             </select>
+          </div>
+        </div>
+
+        {/* Dynamic UPI ID Settings */}
+        <div className="cosmos-card bg-cosmos-surface border-cosmos-border flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-4 mb-6">
+          <div className="flex-1">
+            <h3 className="text-sm font-bold text-cosmos-text">Payment Gateway Configuration</h3>
+            <p className="text-xs text-cosmos-muted mt-0.5">Configure the destination for in-app UPI payments.</p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+            <div className="w-full sm:w-64">
+              <label className="text-[10px] text-cosmos-muted block mb-1">UPI ID (e.g. cosmos@oksbi)</label>
+              <input 
+                type="text" 
+                className="cosmos-input text-xs w-full" 
+                placeholder="UPI ID" 
+                value={upiId} 
+                onChange={e => setUpiId(e.target.value)} 
+              />
+            </div>
+            <div className="w-full sm:w-64">
+              <label className="text-[10px] text-cosmos-muted block mb-1">Payee Name (Optional)</label>
+              <input 
+                type="text" 
+                className="cosmos-input text-xs w-full" 
+                placeholder="Leave blank to use legal bank name" 
+                value={payeeName} 
+                onChange={e => setPayeeName(e.target.value)} 
+              />
+            </div>
+            <button onClick={handleUpdateUpi} disabled={updatingUpi} className="btn-primary text-xs py-2 px-6 mt-4 sm:mt-0 self-end sm:self-center">
+              {updatingUpi ? '...' : 'Save Settings'}
+            </button>
           </div>
         </div>
 

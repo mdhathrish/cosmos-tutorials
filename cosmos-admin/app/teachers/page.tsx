@@ -127,7 +127,7 @@ export default function TeachersPage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg">
       <Sidebar />
-      <main className="md:ml-60 flex-1 p-4 md:p-8 w-full max-w-[100vw]">
+      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
         
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -177,7 +177,7 @@ export default function TeachersPage() {
               </div>
               <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
                 {batches.map(b => (
-                  <label key={b.id} className="flex items-center justify-between p-3 rounded-xl border border-cosmos-border/60 hover:bg-cosmos-surface/30 cursor-pointer">
+                  <label key={b.id} className="flex items-center justify-between p-3 rounded-xl border border-cosmos-border/60 hover:bg-cosmos-primary/[0.03] cursor-pointer">
                     <div>
                       <p className="font-semibold text-sm text-cosmos-text">{b.batch_name}</p>
                       <p className="text-xs text-cosmos-muted">Grade {b.grade}</p>

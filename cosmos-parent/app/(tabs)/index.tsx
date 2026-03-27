@@ -4,10 +4,12 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   ActivityIndicator, RefreshControl, Image
 } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useRouter } from 'expo-router'
 import { supabase, type Student, type AttendanceLog } from '../../lib/supabase'
 import { useColors } from '../../constants/theme'
 import { LinearGradient } from 'expo-linear-gradient'
-import { LogOut, Clock, XCircle, CheckCircle, Flame } from 'lucide-react-native'
+import { LogOut, Clock, XCircle, CheckCircle, Flame, AlertTriangle, CreditCard, Megaphone } from 'lucide-react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -15,6 +17,7 @@ export default function HomeScreen() {
   const Colors = useColors()
   const insets = useSafeAreaInsets()
   const styles = getStyles(Colors)
+  const router = useRouter()
 
   const [student, setStudent] = useState<Student | null>(null)
   const [todayLog, setTodayLog] = useState<AttendanceLog | null>(null)
@@ -22,11 +25,23 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [userName, setUserName] = useState('')
+  const [pendingFee, setPendingFee] = useState(false)
+  const [notices, setNotices] = useState<{ id: string, title: string, content: string, created_at: string }[]>([])
+  const [events, setEvents] = useState<{ id: string; title: string; event_type: string; event_date: string; description: string | null }[]>([])
 
   const today = new Date().toISOString().split('T')[0]
 
   const load = async () => {
     try {
+      // 1. Load cached data for instant UI
+      const cachedName = await AsyncStorage.getItem('user_name')
+      const cachedStudent = await AsyncStorage.getItem('student_profile')
+      if (cachedName) setUserName(cachedName)
+      if (cachedStudent) {
+        setStudent(JSON.parse(cachedStudent))
+        setLoading(false) // Show partial UI if we have a student
+      }
+
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
@@ -38,6 +53,7 @@ export default function HomeScreen() {
 
       if (!parentUser) return
       setUserName(parentUser.full_name)
+      AsyncStorage.setItem('user_name', parentUser.full_name)
 
       const { data: studentData } = await supabase
         .from('students')
@@ -48,26 +64,29 @@ export default function HomeScreen() {
 
       if (studentData) {
         setStudent(studentData)
+        AsyncStorage.setItem('student_profile', JSON.stringify(studentData))
+        setLoading(false)
 
-        const { data: todayAttendance } = await supabase
-          .from('attendance_logs')
-          .select('*')
-          .eq('student_id', studentData.id)
-          .eq('log_date', today)
-          .single()
+        // Parallelize all remaining data fetches
+        const [
+          { data: todayAttendance },
+          { data: recentAttendance },
+          { data: pendingFees },
+          { data: noticeData },
+          { data: eventData }
+        ] = await Promise.all([
+          supabase.from('attendance_logs').select('*').eq('student_id', studentData.id).eq('log_date', today).single(),
+          supabase.from('attendance_logs').select('*').eq('student_id', studentData.id).gte('log_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]).order('log_date', { ascending: false }),
+          supabase.from('fee_records').select('id').eq('student_id', studentData.id).eq('status', 'pending'),
+          supabase.from('notices').select('*').order('created_at', { ascending: false }).limit(3),
+          supabase.from('calendar_events').select('*').or(`batch_id.is.null,batch_id.eq.${studentData.batch_id}`).gte('event_date', today).order('event_date', { ascending: true }).limit(3)
+        ])
 
-        setTodayLog(todayAttendance)
-
-        const weekAgo = new Date()
-        weekAgo.setDate(weekAgo.getDate() - 7)
-        const { data: recent } = await supabase
-          .from('attendance_logs')
-          .select('*')
-          .eq('student_id', studentData.id)
-          .gte('log_date', weekAgo.toISOString().split('T')[0])
-          .order('log_date', { ascending: false })
-
-        setRecentLogs(recent || [])
+        if (todayAttendance) setTodayLog(todayAttendance)
+        setRecentLogs(recentAttendance || [])
+        setPendingFee(pendingFees && pendingFees.length > 0)
+        if (noticeData) setNotices(noticeData)
+        if (eventData) setEvents(eventData)
       }
     } catch (error) {
       console.error('Error loading home data:', error)
@@ -159,6 +178,99 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </LinearGradient>
+          </Animated.View>
+        )}
+
+        {pendingFee && (
+          <Animated.View entering={FadeInDown.duration(650).springify().delay(50)}>
+            <TouchableOpacity 
+              style={[styles.feeCard, { backgroundColor: Colors.surface, borderColor: Colors.orange + '40' }]}
+              onPress={() => router.push('/fees' as any)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.feeIconFrame, { backgroundColor: Colors.orange + '15' }]}>
+                <AlertTriangle size={20} color={Colors.orange} />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.feeTitle, { color: Colors.text }]}>Fee Payment Pending</Text>
+                <Text style={{ color: Colors.muted, fontSize: 12 }}>Please complete your fee to keep logs current.</Text>
+              </View>
+              <View style={[styles.feeAction, { backgroundColor: Colors.orange }]}>
+                 <CreditCard size={14} color="#FFF" />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* Quick Actions Grid */}
+        <Animated.View entering={FadeInDown.duration(650).springify().delay(60)}>
+          <Text style={styles.sectionTitle}>Quick Access</Text>
+          <View style={styles.gridContainer}>
+            <TouchableOpacity style={[styles.gridItem, { backgroundColor: Colors.surface, borderColor: Colors.border }]} onPress={() => router.push('/fees' as any)}>
+              <View style={[styles.gridIconFrame, { backgroundColor: Colors.primary + '10' }]}>
+                <CreditCard size={22} color={Colors.primary} />
+              </View>
+              <Text style={[styles.gridText, { color: Colors.text }]}>Fees</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.gridItem, { backgroundColor: Colors.surface, borderColor: Colors.border }]} onPress={() => router.push('/notices' as any)}>
+              <View style={[styles.gridIconFrame, { backgroundColor: Colors.orange + '10' }]}>
+                <Megaphone size={22} color={Colors.orange} />
+              </View>
+              <Text style={[styles.gridText, { color: Colors.text }]}>Notices</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.gridItem, { backgroundColor: Colors.surface, borderColor: Colors.border }]} onPress={() => router.push('/calendar' as any)}>
+              <View style={[styles.gridIconFrame, { backgroundColor: Colors.green + '10' }]}>
+                <Clock size={22} color={Colors.green} />
+              </View>
+              <Text style={[styles.gridText, { color: Colors.text }]}>Calendar</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        {notices.length > 0 && (
+          <Animated.View entering={FadeInDown.duration(650).springify().delay(80)}>
+            <View style={[styles.sectionHeaderRow, { marginBottom: 12 }]}>
+              <Text style={styles.sectionTitle}>Announcements</Text>
+              <Megaphone color={Colors.primary} size={14} />
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.noticesList} style={{ marginBottom: 32 }}>
+              {notices.map((notice) => (
+                <View key={notice.id} style={[styles.noticeCard, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+                  <Text style={[styles.noticeTitle, { color: Colors.text }]} numberOfLines={1}>{notice.title}</Text>
+                  <Text style={{ color: Colors.muted, fontSize: 12, marginTop: 4 }} numberOfLines={2}>{notice.content}</Text>
+                  <Text style={{ color: Colors.primaryLight, fontSize: 10, marginTop: 8 }}>
+                    {new Date(notice.created_at).toLocaleDateString('en-IN')}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        )}
+
+        {events.length > 0 && (
+          <Animated.View entering={FadeInDown.duration(650).springify().delay(90)}>
+            <View style={[styles.sectionHeaderRow, { marginBottom: 12 }]}>
+              <Text style={styles.sectionTitle}>Upcoming Schedule</Text>
+            </View>
+            <View style={{ gap: 10, marginBottom: 32 }}>
+              {events.map((event) => (
+                <View key={event.id} style={[styles.eventCard, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+                  <View style={[styles.eventDateBox, { backgroundColor: Colors.primary + '10' }]}>
+                    <Text style={[styles.eventDateMonth, { color: Colors.primary }]}>{new Date(event.event_date).toLocaleDateString('en-IN', { month: 'short' })}</Text>
+                    <Text style={[styles.eventDateDay, { color: Colors.text }]}>{new Date(event.event_date).toLocaleDateString('en-IN', { day: '2-digit' })}</Text>
+                  </View>
+                  <View style={{ flex: 1, gap: 2, justifyContent: 'center' }}>
+                    <Text style={[styles.eventTitle, { color: Colors.text }]} numberOfLines={1}>{event.title}</Text>
+                    {event.description && <Text style={{ color: Colors.muted, fontSize: 11 }} numberOfLines={1}>{event.description}</Text>}
+                  </View>
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: event.event_type === 'exam' ? '#fef2f2' : event.event_type === 'holiday' ? '#fffbeb' : '#f0f9ff' }}>
+                    <Text style={{ fontSize: 9, fontFamily: 'Outfit_700Bold', color: event.event_type === 'exam' ? '#ef4444' : event.event_type === 'holiday' ? '#f59e0b' : '#3b82f6' }}>{event.event_type.toUpperCase()}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           </Animated.View>
         )}
 
@@ -309,4 +421,21 @@ const getStyles = (Colors: any) => StyleSheet.create({
   streakDayName: { fontSize: 11, fontFamily: 'Outfit_600SemiBold', color: Colors.muted },
   streakDayNum: { fontSize: 16, fontFamily: 'Outfit_700Bold', color: Colors.text, marginVertical: 8 },
   streakDotRecord: { width: 8, height: 8, borderRadius: 4 },
+  feeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, borderWidth: 1, marginBottom: 32 },
+  feeIconFrame: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  feeTitle: { fontSize: 15, fontFamily: 'Outfit_700Bold' },
+  feeAction: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  noticesList: { gap: 12, paddingRight: 16 },
+  noticeCard: { width: 240, padding: 16, borderRadius: 16, borderWidth: 1 },
+  noticeTitle: { fontSize: 14, fontFamily: 'Outfit_700Bold' },
+  eventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, borderWidth: 1 },
+  eventDateBox: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  eventDateMonth: { fontSize: 10, fontFamily: 'Outfit_700Bold', textTransform: 'uppercase' },
+  eventDateDay: { fontSize: 16, fontFamily: 'Outfit_800ExtraBold' },
+  eventTitle: { fontSize: 13, fontFamily: 'Outfit_700Bold' },
+
+  gridContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 32, marginTop: 12 },
+  gridItem: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 20, borderWidth: 1, gap: 8 },
+  gridIconFrame: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  gridText: { fontSize: 12, fontFamily: 'Outfit_600SemiBold' },
 })

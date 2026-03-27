@@ -15,6 +15,7 @@ interface Homework {
     due_date: string
     created_at: string
     batches?: { batch_name: string; grade: number }
+    homework_submissions?: { status: string }[]
 }
 
 export default function HomeworkPage() {
@@ -27,7 +28,7 @@ export default function HomeworkPage() {
     const load = async () => {
         const { data } = await supabase
             .from('homework')
-            .select('*, batches(batch_name, grade)')
+            .select('*, batches(batch_name, grade), homework_submissions(status)')
             .order('due_date', { ascending: true })
         setHomeworks(data || [])
         setLoading(false)
@@ -51,7 +52,7 @@ export default function HomeworkPage() {
     return (
         <div className="flex min-h-screen bg-cosmos-bg star-bg">
             <Sidebar />
-            <main className="md:ml-60 flex-1 p-4 md:p-6 w-full max-w-[100vw]">
+            <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h1 className="font-display text-2xl font-bold text-cosmos-primary">Homework</h1>
@@ -77,21 +78,41 @@ export default function HomeworkPage() {
                 ) : (
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                         {homeworks.map(hw => {
+                            const pendingSubmissions = hw.homework_submissions?.filter(s => s.status === 'pending').length || 0
+                            const totalSubmissions = hw.homework_submissions?.length || 0
+                            const isDone = totalSubmissions > 0 && pendingSubmissions === 0
                             const overdue = isOverdue(hw.due_date) && !isDueToday(hw.due_date)
                             const today = isDueToday(hw.due_date)
+
                             return (
-                                <div key={hw.id} className={`cosmos-card hover:border-cosmos-primary/30 transition-colors ${overdue ? 'border-cosmos-red/30 bg-cosmos-red/5' :
-                                        today ? 'border-cosmos-orange/30 bg-cosmos-orange/5' : ''
+                                <div key={hw.id} className={`cosmos-card hover:border-cosmos-primary/30 transition-all ${isDone ? 'border-cosmos-green/30 bg-cosmos-green/5 opacity-80 hover:opacity-100' :
+                                        overdue ? 'border-cosmos-red/30 bg-cosmos-red/5' :
+                                            today ? 'border-cosmos-orange/30 bg-cosmos-orange/5' : ''
                                     }`}>
                                     <div className="flex items-start justify-between gap-3 mb-2">
-                                        <Link href={`/homework/${hw.id}`} className="font-display font-bold text-cosmos-text hover:text-cosmos-primary transition-colors flex items-center gap-1.5">
-                                            {hw.title}
-                                            <ExternalLink size={14} className="opacity-50" />
-                                        </Link>
+                                        <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-2">
+                                                <Link href={`/homework/${hw.id}`} className="font-display font-bold text-cosmos-text hover:text-cosmos-primary transition-colors">
+                                                    {hw.title}
+                                                </Link>
+                                                {(hw as any).attachment_url && (
+                                                    <a href={(hw as any).attachment_url} target="_blank" rel="noreferrer" 
+                                                        className="p-1 rounded bg-cosmos-primary/5 text-cosmos-primary hover:bg-cosmos-primary/10 transition-colors"
+                                                        title="View PDF"
+                                                    >
+                                                        <ExternalLink size={12} />
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </div>
                                         <div className="flex items-center gap-2 shrink-0">
-                                            {overdue && <span className="badge-red">Overdue</span>}
-                                            {today && <span className="badge-amber">Due Today</span>}
-                                            {!overdue && !today && <span className="badge-primary">Upcoming</span>}
+                                            {isDone ? <span className="badge-green">Done ✓</span> : (
+                                                <>
+                                                    {overdue && <span className="badge-red">Overdue</span>}
+                                                    {today && <span className="badge-amber">Due Today</span>}
+                                                    {!overdue && !today && <span className="badge-primary">Upcoming</span>}
+                                                </>
+                                            )}
                                             <button onClick={() => handleDelete(hw.id)}
                                                 className="p-1.5 rounded-lg hover:bg-cosmos-red/10 text-cosmos-muted hover:text-cosmos-red transition-colors">
                                                 <Trash2 size={13} />
@@ -103,8 +124,8 @@ export default function HomeworkPage() {
                                     )}
                                     <div className="flex items-center justify-between text-xs">
                                         <span className="badge-blue">{hw.batches?.batch_name} · Grade {hw.batches?.grade}</span>
-                                        <span className={`font-mono font-semibold ${overdue ? 'text-cosmos-red' : today ? 'text-cosmos-orange' : 'text-cosmos-muted'}`}>
-                                            Due: {new Date(hw.due_date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        <span className={`font-mono font-semibold ${isDone ? 'text-cosmos-green' : overdue ? 'text-cosmos-red' : today ? 'text-cosmos-orange' : 'text-cosmos-muted'}`}>
+                                            {isDone ? 'Finished' : `Due: ${new Date(hw.due_date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}
                                         </span>
                                     </div>
                                 </div>

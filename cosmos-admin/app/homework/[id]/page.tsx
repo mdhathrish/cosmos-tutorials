@@ -2,7 +2,7 @@
 import { useEffect, useState, use } from 'react'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
-import { Loader2, ArrowLeft, Search, CheckCircle, AlertCircle } from 'lucide-react'
+import { Loader2, ArrowLeft, CheckCircle, AlertCircle, ExternalLink, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 
@@ -95,7 +95,7 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
         return (
             <div className="flex min-h-screen bg-cosmos-bg star-bg">
                 <Sidebar />
-                <main className="md:ml-60 flex-1 p-4 md:p-6 w-full max-w-[100vw] flex items-center justify-center">
+                <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8 flex items-center justify-center">
                     <Loader2 size={32} className="text-cosmos-primary animate-spin" />
                 </main>
             </div>
@@ -106,7 +106,7 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
         return (
             <div className="flex min-h-screen bg-cosmos-bg star-bg">
                 <Sidebar />
-                <main className="md:ml-60 flex-1 p-4 md:p-6 w-full max-w-[100vw] text-center text-cosmos-muted">Homework not found</main>
+                <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8 text-center text-cosmos-muted">Homework not found</main>
             </div>
         )
     }
@@ -117,7 +117,7 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
     return (
         <div className="flex min-h-screen bg-cosmos-bg star-bg">
             <Sidebar />
-            <main className="md:ml-60 flex-1 p-4 md:p-6 w-full max-w-[100vw]">
+            <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
                 <Link href="/homework" className="text-cosmos-muted hover:text-cosmos-text text-sm flex items-center gap-1.5 mb-6 transition-colors">
                     <ArrowLeft size={16} /> Back to Homeworks
                 </Link>
@@ -125,9 +125,18 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
                 <div className="cosmos-card mb-8">
                     <h1 className="font-display text-2xl font-bold text-cosmos-text mb-2">{hw.title}</h1>
                     {hw.description && <p className="text-cosmos-muted text-sm mb-4">{hw.description}</p>}
-                    <div className="flex items-center gap-3 text-xs">
-                        <span className="badge-blue">{hw.batches?.batch_name} (Grade {hw.batches?.grade})</span>
-                        <span className="font-mono text-cosmos-orange">Due: {new Date(hw.due_date + 'T00:00:00').toLocaleDateString('en-IN')}</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 text-xs">
+                            <span className="badge-blue">{hw.batches?.batch_name} (Grade {hw.batches?.grade})</span>
+                            <span className="font-mono text-cosmos-orange">Due: {new Date(hw.due_date + 'T00:00:00').toLocaleDateString('en-IN')}</span>
+                        </div>
+                        {hw.attachment_url && (
+                            <a href={hw.attachment_url} target="_blank" rel="noreferrer" 
+                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cosmos-primary text-white text-xs font-semibold hover:opacity-90 transition-all shadow-sm"
+                            >
+                                <FileText size={14} /> View Homework PDF <ExternalLink size={12} />
+                            </a>
+                        )}
                     </div>
                 </div>
 

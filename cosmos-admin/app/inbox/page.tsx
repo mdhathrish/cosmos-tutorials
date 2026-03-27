@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
-import { MessageSquare, Send, Loader2, User } from 'lucide-react'
+import { MessageSquare, Send, Loader2, User, ArrowLeft } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 interface Conversation {
@@ -153,9 +153,9 @@ export default function InboxPage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg">
       <Sidebar />
-      <main className="md:ml-60 flex-1 flex h-screen max-w-[100vw]">
+      <main className="md:ml-64 flex-1 flex h-screen md:h-screen pt-20 md:pt-0 max-w-[100vw]">
         {/* Left Side: Conversation List */}
-        <div className="w-80 border-r border-cosmos-border flex flex-col bg-white">
+        <div className={`w-full md:w-80 border-r border-cosmos-border flex flex-col bg-white ${selectedConv ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-4 border-b border-cosmos-border">
             <h1 className="font-display text-lg font-bold text-cosmos-text">Messages</h1>
             <p className="text-cosmos-muted text-xs">Parent-Teacher Inbox</p>
@@ -192,14 +192,19 @@ export default function InboxPage() {
         </div>
 
         {/* Right Side: Chat Thread */}
-        <div className="flex-1 flex flex-col bg-cosmos-bg">
+        <div className={`flex-1 flex flex-col bg-cosmos-bg ${selectedConv ? 'flex' : 'hidden md:flex'}`}>
           {selectedConv ? (
             <>
               {/* Top Bar */}
               <div className="p-4 border-b border-cosmos-border bg-white flex items-center justify-between">
-                <div>
-                  <h2 className="font-display text-sm font-bold text-cosmos-text">{selectedConv.students?.full_name}</h2>
-                  <p className="text-cosmos-muted text-xs">Category: {categoryLabels[selectedConv.category]}</p>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setSelectedConv(null)} className="md:hidden p-1 rounded-lg hover:bg-cosmos-surface text-cosmos-muted">
+                    <ArrowLeft size={18} />
+                  </button>
+                  <div>
+                    <h2 className="font-display text-sm font-bold text-cosmos-text">{selectedConv.students?.full_name}</h2>
+                    <p className="text-cosmos-muted text-xs">Category: {categoryLabels[selectedConv.category]}</p>
+                  </div>
                 </div>
               </div>
 

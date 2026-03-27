@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router'
 import { View, Text, StyleSheet } from 'react-native'
 import { useColors } from '../../constants/theme'
 import { BlurView } from 'expo-blur'
-import { Home, Brain, MapPin, BookOpen } from 'lucide-react-native'
+import { Home, Brain, MapPin, BookOpen, MessageCircle } from 'lucide-react-native'
 
 function TabIcon({ IconComponent, label, focused }: { IconComponent: any; label: string; focused: boolean }) {
   const Colors = useColors()
@@ -42,6 +42,7 @@ export default function TabLayout() {
       <Tabs.Screen name="performance" options={{ tabBarIcon: ({ focused }) => <TabIcon IconComponent={Brain} label="Skills" focused={focused} /> }} />
       <Tabs.Screen name="attendance" options={{ tabBarIcon: ({ focused }) => <TabIcon IconComponent={MapPin} label="Attend" focused={focused} /> }} />
       <Tabs.Screen name="homework" options={{ tabBarIcon: ({ focused }) => <TabIcon IconComponent={BookOpen} label="HW" focused={focused} /> }} />
+      <Tabs.Screen name="messages" options={{ tabBarIcon: ({ focused }) => <TabIcon IconComponent={MessageCircle} label="Msg" focused={focused} /> }} />
     </Tabs>
   )
 }

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Cosmos Tutorials",
     "slug": "cosmos-parent",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "orientation": "portrait",
     "newArchEnabled": true,
     "icon": "./assets/icon.png",
@@ -24,7 +24,7 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.cosmostutorials.parent",
-      "versionCode": 1,
+      "versionCode": 4,
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [

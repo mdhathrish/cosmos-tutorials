@@ -219,7 +219,7 @@ export default function MarksEntryPage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg star-bg">
       <Sidebar />
-      <main className="md:ml-60 flex-1 p-4 md:p-6 w-full max-w-[100vw]">
+      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -315,7 +315,7 @@ export default function MarksEntryPage() {
 
 
                   return (
-                    <tr key={row.student_id} className="border-b border-cosmos-border/50 hover:bg-cosmos-surface/30">
+                    <tr key={row.student_id} className="border-b border-cosmos-border/50 hover:bg-cosmos-primary/[0.03]">
                       <td className="sticky left-0 bg-cosmos-card z-10 py-2 px-4 font-medium text-cosmos-text">
                         {row.student_name}
                       </td>
@@ -335,7 +335,7 @@ export default function MarksEntryPage() {
                                 className={`w-8 h-8 rounded-lg border-2 transition-all flex items-center justify-center ${
                                   status === 'correct' ? 'bg-cosmos-green/10 border-cosmos-green text-cosmos-green hover:bg-cosmos-green/20' :
                                   status === 'incorrect' ? 'bg-cosmos-red/10 border-cosmos-red text-cosmos-red hover:bg-cosmos-red/20' :
-                                  'bg-cosmos-surface/50 border-cosmos-border/60 hover:border-cosmos-muted/50 text-cosmos-muted/60'
+                                  'bg-slate-50 border-cosmos-border/60 hover:border-cosmos-muted/50 text-cosmos-muted/60'
                                 } ${isSaved ? 'shadow-[0_0_8px_rgba(34,197,94,0.2)]' : ''}`}
                                 aria-label={`${row.student_name} Q${q.question_number}`}
                               >

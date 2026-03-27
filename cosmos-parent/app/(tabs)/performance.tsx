@@ -72,18 +72,20 @@ export default function PerformanceScreen() {
     const testsList = Object.values(uniqueTestsMap).sort((a: any, b: any) => new Date(b.test_date).getTime() - new Date(a.test_date).getTime())
     setTests(testsList as any)
 
-    // 2. Fetch overall or test performance data
-    let perf: ConceptPerformance[] = []
-    if (selectedTestId === 'all') {
-      const { data } = await supabase.from('student_concept_performance').select('*').eq('student_id', student.id).order('subject')
-      perf = data || []
-    } else {
-      const data = await loadTestSpecificPerformance(selectedTestId, student.id)
-      perf = data || []
-    }
+    // 2. Fetch overall performance data (unconditional for the Grid matrix)
+    const { data: overallData } = await supabase.from('student_concept_performance').select('*').eq('student_id', student.id).order('subject')
+    const overall = overallData || []
+    setAllPerf(overall)
+    processPerformance(overall) // Sets up the grid layout
 
-    setAllPerf(perf)
-    processPerformance(perf)
+    // 3. Load Lacking Concepts suggestions (Test-Specific if selected, otherwise Overall)
+    let focusPerf = overall
+    if (selectedTestId !== 'all') {
+      const testData = await loadTestSpecificPerformance(selectedTestId, student.id)
+      focusPerf = testData || []
+    }
+    const lacking = focusPerf.filter(p => p.percentage_score < 60).sort((a,b) => a.percentage_score - b.percentage_score).slice(0, 3)
+    setLackingConcepts(lacking)
 
     setLoading(false)
     setRefreshing(false)
@@ -188,31 +190,6 @@ export default function PerformanceScreen() {
         <Text style={styles.subtitle}>{studentName.split(' ')[0]}&apos;s micro-concept mastery</Text>
       </View>
 
-      {/* NEW: Test Selector Slider */}
-      {tests.length > 0 && (
-        <Animated.View entering={FadeIn.duration(500)} style={{ marginBottom: 24 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.testSlider} contentContainerStyle={styles.testSliderContent}>
-            <TouchableOpacity 
-              onPress={() => setSelectedTestId('all')} 
-              style={[styles.testPill, selectedTestId === 'all' && styles.testPillActive]}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.testPillText, selectedTestId === 'all' && styles.testPillTextActive]}>🌌 Overall Matrix</Text>
-            </TouchableOpacity>
-            {tests.map(t => (
-              <TouchableOpacity
-                key={t.id}
-                onPress={() => setSelectedTestId(t.id)}
-                style={[styles.testPill, selectedTestId === t.id && styles.testPillActive]}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.testPillText, selectedTestId === t.id && styles.testPillTextActive]}>📝 {t.test_name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </Animated.View>
-      )}
-
 
       <Animated.View entering={FadeInDown.duration(600).springify()}>
         <LinearGradient 
@@ -237,35 +214,6 @@ export default function PerformanceScreen() {
           </View>
         </LinearGradient>
       </Animated.View>
-
-      {/* NEW: Areas Needing Focus Card */}
-      {lackingConcepts.length > 0 && (
-        <Animated.View entering={FadeInDown.duration(600).delay(200)}>
-          <View style={[styles.lackingCard, { borderColor: Colors.bg === '#030409' ? 'rgba(244,63,94,0.3)' : 'rgba(239,68,68,0.2)' }]}>
-            <View style={styles.lackingHeader}>
-              <View style={[styles.iconBoxSmall, { backgroundColor: Colors.bg === '#030409' ? 'rgba(239,68,68,0.1)' : '#fef2f2', borderColor: 'rgba(239,68,68,0.2)' }]}>
-                <Target color="#f43f5e" size={16} strokeWidth={2.5} />
-              </View>
-              <Text style={[styles.lackingTitle, { color: Colors.text }]}>Areas Needing Focus</Text>
-            </View>
-            <Text style={styles.lackingSubtitle}>Child scored below 60% on these concepts. Targeted review recommended:</Text>
-            <View style={styles.lackingList}>
-              {lackingConcepts.map((c) => {
-                const heat = getHeatColor(c.percentage_score || 0)
-                return (
-                  <View key={c.micro_tag_id} style={styles.lackingItem}>
-                    <View style={[styles.lackingItemDot, { backgroundColor: heat.text }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.lackingItemText, { color: Colors.text }]}>{c.concept_name}</Text>
-                      <Text style={styles.lackingItemSub}>{c.subject} • {c.percentage_score}% Mastery</Text>
-                    </View>
-                  </View>
-                )
-              })}
-            </View>
-          </View>
-        </Animated.View>
-      )}
 
 
       {subjects.length > 1 && (
@@ -321,6 +269,69 @@ export default function PerformanceScreen() {
           <Text style={styles.emptyTitle}>No matrices available</Text>
           <Text style={styles.emptySubtitle}>Granular performance data will reconstruct here after examinations.</Text>
         </View>
+      )}
+
+      {/* NEW SECTION: Test Specific Insights appended below the main Overall Grid */}
+      {grouped.length > 0 && tests.length > 0 && (
+        <Animated.View entering={FadeIn.duration(600).delay(400)} style={{ marginTop: 24, marginBottom: 16 }}>
+          <View style={{ height: 1, backgroundColor: Colors.border, marginBottom: 24, opacity: 0.5 }} />
+          <Text style={[styles.chapterTitle, { marginBottom: 6 }]}>📝 Test Analyzer & Suggestions</Text>
+          <Text style={{ fontSize: 13, fontFamily: 'Outfit_500Medium', color: Colors.muted, marginBottom: 16 }}>Select a specific test results breakdown to view focused review suggestions.</Text>
+          
+          {/* Test Selector Slider */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.testSlider, { marginBottom: 16 }]} contentContainerStyle={styles.testSliderContent}>
+            <TouchableOpacity 
+              onPress={() => setSelectedTestId('all')} 
+              style={[styles.testPill, selectedTestId === 'all' && styles.testPillActive]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.testPillText, selectedTestId === 'all' && styles.testPillTextActive]}>🌌 Overall Insights</Text>
+            </TouchableOpacity>
+            {tests.map(t => (
+              <TouchableOpacity
+                key={t.id}
+                onPress={() => setSelectedTestId(t.id)}
+                style={[styles.testPill, selectedTestId === t.id && styles.testPillActive]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.testPillText, selectedTestId === t.id && styles.testPillTextActive]}>📝 {t.test_name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Areas Needing Focus Card rendering under selection */}
+          {lackingConcepts.length > 0 ? (
+            <View style={[styles.lackingCard, { borderColor: Colors.bg === '#030409' ? 'rgba(244,63,94,0.3)' : 'rgba(239,68,68,0.2)' }]}>
+              <View style={styles.lackingHeader}>
+                <View style={[styles.iconBoxSmall, { backgroundColor: Colors.bg === '#030409' ? 'rgba(239,68,68,0.1)' : '#fef2f2', borderColor: 'rgba(239,68,68,0.2)' }]}>
+                  <Target color="#f43f5e" size={16} strokeWidth={2.5} />
+                </View>
+                <Text style={[styles.lackingTitle, { color: Colors.text }]}>Areas Needing Focus</Text>
+              </View>
+              <Text style={styles.lackingSubtitle}>Targeted review recommended for {selectedTestId === 'all' ? 'overall performance' : 'this test'} benchmarks below 60%:</Text>
+              <View style={styles.lackingList}>
+                {lackingConcepts.map((c) => {
+                  const heat = getHeatColor(c.percentage_score || 0)
+                  return (
+                    <View key={c.micro_tag_id} style={styles.lackingItem}>
+                      <View style={[styles.lackingItemDot, { backgroundColor: heat.text }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.lackingItemText, { color: Colors.text }]}>{c.concept_name}</Text>
+                        <Text style={styles.lackingItemSub}>{c.subject} • {c.percentage_score}% Mastery</Text>
+                      </View>
+                    </View>
+                  )
+                })}
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.lackingCard, { borderColor: 'rgba(16,185,129,0.2)', alignItems: 'center', paddingVertical: 24 }]}>
+              <Text style={{ fontSize: 32, marginBottom: 8 }}>🎉</Text>
+              <Text style={[styles.lackingTitle, { color: Colors.text }]}>All Caught Up!</Text>
+              <Text style={[styles.lackingSubtitle, { textAlign: 'center' }]}>{selectedTestId === 'all' ? 'Overall performance' : 'Test scores'} look great with no concepts scoring below 60%.</Text>
+            </View>
+          )}
+        </Animated.View>
       )}
 
       {grouped.length > 0 && (

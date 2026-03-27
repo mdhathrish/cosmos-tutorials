@@ -42,7 +42,7 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg star-bg">
       <Sidebar />
-      <main className="md:ml-60 flex-1 p-4 md:p-8 w-full max-w-[100vw]">
+      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
         <div className="mb-8">
           <h1 className="font-display text-2xl font-bold text-cosmos-primary">Dashboard</h1>
           <p className="text-cosmos-muted text-sm mt-1">
@@ -51,7 +51,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stat Cards */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {statCards.map(({ label, value, icon: Icon, primary, color, bg, border }) => (
             <div key={label} className={`cosmos-card ${primary ? 'stat-primary' : `border ${border} ${bg}`}`}>
               <div className="flex items-center justify-between mb-3">
@@ -70,7 +70,7 @@ export default function DashboardPage() {
         {/* Quick Actions */}
         <div className="cosmos-card mb-6">
           <h2 className="font-display font-semibold text-xs uppercase tracking-wider text-cosmos-muted mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <a href="/marks-entry" className="flex flex-col items-center gap-2 p-4 rounded-lg bg-cosmos-primary/5 border border-cosmos-primary/15 hover:bg-cosmos-primary/10 transition-colors cursor-pointer">
               <ClipboardList size={20} className="text-cosmos-primary" />
               <span className="text-xs font-medium text-cosmos-primary">Enter Marks</span>

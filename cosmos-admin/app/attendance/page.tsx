@@ -92,7 +92,7 @@ export default function AttendancePage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg star-bg">
       <Sidebar />
-      <main className="md:ml-60 flex-1 p-4 md:p-6 w-full max-w-[100vw]">
+      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
         <div className="mb-6">
           <h1 className="font-display text-2xl font-bold text-cosmos-primary">Attendance</h1>
           <p className="text-cosmos-muted text-sm mt-0.5">Check-in and check-out · push notifications sent automatically</p>
@@ -123,8 +123,8 @@ export default function AttendancePage() {
         {loading ? (
           <div className="cosmos-card flex items-center justify-center py-16"><Loader2 size={28} className="text-cosmos-primary animate-spin" /></div>
         ) : rows.length > 0 ? (
-          <div className="cosmos-card p-0 overflow-hidden">
-            <table className="cosmos-table">
+          <div className="cosmos-card p-0 overflow-x-auto">
+            <table className="cosmos-table min-w-[600px]">
               <thead><tr><th>Student</th><th className="text-center">Status</th><th className="text-center">Check-In</th><th className="text-center">Check-Out</th><th className="text-center">Actions</th></tr></thead>
               <tbody>
                 {rows.map(({ student, log }) => (
