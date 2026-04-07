@@ -9,10 +9,20 @@ export function createClient() {
 }
 
 // Types matching our schema
-export type UserRole = 'admin' | 'parent'
+export type UserRole = 'super_admin' | 'admin' | 'teacher' | 'parent'
+
+export interface Institute {
+  id: string
+  name: string
+  address?: string
+  contact_phone?: string
+  is_active: boolean
+  is_deleted: boolean
+}
 
 export interface Batch {
   id: string
+  institute_id: string
   grade: number
   subject: string
   batch_name: string
@@ -21,16 +31,19 @@ export interface Batch {
   days_of_week: string[]
   capacity: number
   is_active: boolean
+  is_deleted: boolean
 }
 
 export interface Student {
   id: string
+  institute_id: string
   full_name: string
   parent_id: string
   batch_id: string
   grade: number
   enrollment_date?: string
   is_active: boolean
+  is_deleted: boolean
   address?: string
   parent_number?: string
   student_number?: string

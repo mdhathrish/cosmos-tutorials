@@ -1,14 +1,14 @@
 // app/(tabs)/performance.tsx
 // THE CORE SCREEN — micro-concept heatmap of student performance
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Dimensions
+  ActivityIndicator, RefreshControl, Dimensions, LayoutAnimation
 } from 'react-native'
 import { supabase, type ConceptPerformance } from '../../lib/supabase'
 import { useColors, getHeatColor } from '../../constants/theme'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Activity, Target, Zap } from 'lucide-react-native'
+import { Activity, Target, Zap, ChevronRight } from 'lucide-react-native'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -20,149 +20,130 @@ interface GroupedPerformance {
     chapter: string
     concepts: ConceptPerformance[]
   }[]
-}
-
-export default function PerformanceScreen() {
+}export default function PerformanceScreen() {
   const Colors = useColors()
   const insets = useSafeAreaInsets()
-  const styles = getStyles(Colors)
+  const styles = useMemo(() => getStyles(Colors), [Colors])
   
-  const [grouped, setGrouped] = useState<GroupedPerformance[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null)
-  const [studentName, setStudentName] = useState('')
-  const [overallScore, setOverallScore] = useState(0)
-
-  // NEW: Filter States
+  const [studentMetadata, setStudentMetadata] = useState<{ id: string; name: string } | null>(null)
+  
+  // Performance States
+  const [allPerf, setAllPerf] = useState<ConceptPerformance[]>([])
   const [tests, setTests] = useState<{ id: string; test_name: string; test_date: string }[]>([])
   const [selectedTestId, setSelectedTestId] = useState<'all' | string>('all')
-  const [allPerf, setAllPerf] = useState<ConceptPerformance[]>([]) // Cache overall
+  const [testCache, setTestCache] = useState<{ [testId: string]: ConceptPerformance[] }>({})
   const [lackingConcepts, setLackingConcepts] = useState<ConceptPerformance[]>([])
 
+  // Memoized Grouped Data Logic
+  const grouped = useMemo(() => {
+    if (!allPerf.length) return []
+    const subjectMap: { [s: string]: { [c: string]: ConceptPerformance[] } } = {}
+    allPerf.forEach((p) => {
+      if (!subjectMap[p.subject]) subjectMap[p.subject] = {}
+      if (!subjectMap[p.subject][p.chapter]) subjectMap[p.subject][p.chapter] = []
+      subjectMap[p.subject][p.chapter].push(p)
+    })
+    return Object.entries(subjectMap).map(([subject, chapters]) => ({
+      subject,
+      chapters: Object.entries(chapters).map(([chapter, concepts]) => ({ chapter, concepts })),
+    }))
+  }, [allPerf])
 
-  const load = async () => {
+  const overallScore = useMemo(() => {
+    if (!allPerf.length) return 0
+    const totalObtained = allPerf.reduce((s, p) => s + p.total_obtained, 0)
+    const totalPossible = allPerf.reduce((s, p) => s + p.total_possible, 0)
+    return totalPossible > 0 ? Math.round((totalObtained / totalPossible) * 100) : 0
+  }, [allPerf])
+
+  // Split load into two: initial bootstrapping and contextual adjustments
+  const initialize = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { data: parentUser } = await supabase
-      .from('users').select('id').eq('auth_id', user.id).single()
+    const { data: parentUser } = await supabase.from('users').select('id').eq('auth_id', user.id).single()
     if (!parentUser) return
 
-    const { data: student } = await supabase
-      .from('students').select('id, full_name').eq('parent_id', parentUser.id).eq('is_active', true).single()
+    const { data: student } = await supabase.from('students').select('id, full_name').eq('parent_id', parentUser.id).eq('is_active', true).single()
     if (!student) return
 
-    setStudentName(student.full_name)
+    setStudentMetadata({ id: student.id, name: student.full_name })
 
-    // 1. Fetch available tests that the student took
-    const { data: scoreData } = await supabase
-      .from('student_scores')
-      .select('test_id, tests(id, test_name, test_date)')
-      .eq('student_id', student.id)
-    
+    // 1. Fetch available tests
+    const { data: scoreData } = await supabase.from('student_scores').select('test_id, tests(id, test_name, test_date)').eq('student_id', student.id)
     const uniqueTestsMap: { [id: string]: any } = {}
-    if (scoreData) {
-      scoreData.forEach((s: any) => {
-        if (s.tests && !uniqueTestsMap[s.tests.id]) {
-          uniqueTestsMap[s.tests.id] = s.tests
-        }
-      })
-    }
-    const testsList = Object.values(uniqueTestsMap).sort((a: any, b: any) => new Date(b.test_date).getTime() - new Date(a.test_date).getTime())
-    setTests(testsList as any)
+    scoreData?.forEach((s: any) => { if (s.tests && !uniqueTestsMap[s.tests.id]) uniqueTestsMap[s.tests.id] = s.tests })
+    setTests(Object.values(uniqueTestsMap).sort((a: any, b: any) => new Date(b.test_date).getTime() - new Date(a.test_date).getTime()))
 
-    // 2. Fetch overall performance data (unconditional for the Grid matrix)
+    // 2. Fetch overall performance data
     const { data: overallData } = await supabase.from('student_concept_performance').select('*').eq('student_id', student.id).order('subject')
     const overall = overallData || []
     setAllPerf(overall)
-    processPerformance(overall) // Sets up the grid layout
-
-    // 3. Load Lacking Concepts suggestions (Test-Specific if selected, otherwise Overall)
-    let focusPerf = overall
-    if (selectedTestId !== 'all') {
-      const testData = await loadTestSpecificPerformance(selectedTestId, student.id)
-      focusPerf = testData || []
+    
+    // Set initial subject filter
+    if (overall.length > 0 && !selectedSubject) {
+      setSelectedSubject(overall[0].subject)
     }
-    const lacking = focusPerf.filter(p => p.percentage_score < 60).sort((a,b) => a.percentage_score - b.percentage_score).slice(0, 3)
-    setLackingConcepts(lacking)
 
     setLoading(false)
     setRefreshing(false)
-  }
+  }, [selectedSubject])
 
-  const loadTestSpecificPerformance = async (testId: string, studentId: string) => {
-    const { data: testScores } = await supabase
-      .from('student_scores')
-      .select('marks_obtained, is_correct, question_id, test_questions(max_marks, micro_tags(id, subject, chapter, concept_name))')
-      .eq('student_id', studentId)
-      .eq('test_id', testId)
+  const fetchInsights = useCallback(async (testId: string) => {
+    if (!studentMetadata) return
+    let focusPerf = allPerf
 
-    if (!testScores) return []
+    if (testId !== 'all') {
+      if (testCache[testId]) {
+        focusPerf = testCache[testId]
+      } else {
+        const { data: testScores } = await supabase
+          .from('student_scores')
+          .select('marks_obtained, is_correct, question_id, test_questions(max_marks, micro_tags(id, subject, chapter, concept_name))')
+          .eq('student_id', studentMetadata.id)
+          .eq('test_id', testId)
 
-    const conceptMap: { [concept: string]: any } = {}
-    testScores.forEach((s: any) => {
-      const q = s.test_questions
-      if (!q || !q.micro_tags) return
-      const tag = q.micro_tags
-      const key = tag.concept_name
-
-      if (!conceptMap[key]) {
-        conceptMap[key] = {
-          micro_tag_id: tag.id, subject: tag.subject, chapter: tag.chapter || 'General', concept_name: tag.concept_name,
-          questions_attempted: 0, total_obtained: 0, total_possible: 0
+        if (testScores) {
+          const conceptMap: { [concept: string]: any } = {}
+          testScores.forEach((s: any) => {
+            const q = s.test_questions
+            if (!q || !q.micro_tags) return
+            const tag = q.micro_tags
+            const key = tag.concept_name
+            if (!conceptMap[key]) {
+              conceptMap[key] = {
+                micro_tag_id: tag.id, subject: tag.subject, chapter: tag.chapter || 'General', concept_name: tag.concept_name,
+                questions_attempted: 0, total_obtained: 0, total_possible: 0
+              }
+            }
+            conceptMap[key].questions_attempted += 1
+            conceptMap[key].total_obtained += s.marks_obtained || 0
+            conceptMap[key].total_possible += q.max_marks || 1
+          })
+          const testResults = Object.values(conceptMap).map(c => ({
+            ...c, student_id: studentMetadata.id, full_path: `${c.subject} > ${c.chapter} > ${c.concept_name}`,
+            percentage_score: Math.round((c.total_obtained / c.total_possible) * 100)
+          })) as ConceptPerformance[]
+          
+          setTestCache(prev => ({ ...prev, [testId]: testResults }))
+          focusPerf = testResults
         }
       }
-      conceptMap[key].questions_attempted += 1
-      conceptMap[key].total_obtained += s.marks_obtained || 0
-      conceptMap[key].total_possible += q.max_marks || 1
-    })
-
-    return Object.values(conceptMap).map(c => ({
-      ...c, student_id: studentId, full_path: `${c.subject} > ${c.chapter} > ${c.concept_name}`,
-      percentage_score: Math.round((c.total_obtained / c.total_possible) * 100)
-    })) as ConceptPerformance[]
-  }
-
-  const processPerformance = (perf: ConceptPerformance[]) => {
-    if (perf && perf.length > 0) {
-      const totalObtained = perf.reduce((s: number, p: ConceptPerformance) => s + p.total_obtained, 0)
-      const totalPossible = perf.reduce((s: number, p: ConceptPerformance) => s + p.total_possible, 0)
-      setOverallScore(totalPossible > 0 ? Math.round((totalObtained / totalPossible) * 100) : 0)
-
-      const subjectMap: { [s: string]: { [c: string]: ConceptPerformance[] } } = {}
-      for (const p of perf) {
-        if (!subjectMap[p.subject]) subjectMap[p.subject] = {}
-        if (!subjectMap[p.subject][p.chapter]) subjectMap[p.subject][p.chapter] = []
-        subjectMap[p.subject][p.chapter].push(p)
-      }
-
-      const result: GroupedPerformance[] = Object.entries(subjectMap).map(([subject, chapters]) => ({
-        subject,
-        chapters: Object.entries(chapters).map(([chapter, concepts]) => ({ chapter, concepts })),
-      }))
-
-      setGrouped(result)
-      if (result.length > 0) {
-        const hasSelected = result.some(r => r.subject === selectedSubject)
-        if (!hasSelected) setSelectedSubject(result[0].subject)
-      }
-
-      // Compute Lacking Concepts (< 60%) sorted by lowest
-      const lacking = perf.filter(p => p.percentage_score < 60).sort((a,b) => a.percentage_score - b.percentage_score).slice(0, 3)
-      setLackingConcepts(lacking)
-    } else {
-      setGrouped([])
-      setOverallScore(0)
-      setLackingConcepts([])
     }
-  }
 
-  useEffect(() => { load() }, [selectedTestId])
+    const lacking = focusPerf.filter(p => p.percentage_score < 60).sort((a,b) => a.percentage_score - b.percentage_score).slice(0, 3)
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setLackingConcepts(lacking)
+  }, [studentMetadata, allPerf, testCache])
 
-  const subjects = grouped.map(g => g.subject)
-  const activeGroup = grouped.find(g => g.subject === selectedSubject)
+  useEffect(() => { initialize() }, [])
+  useEffect(() => { fetchInsights(selectedTestId) }, [selectedTestId, studentMetadata])
 
+  const subjects = useMemo(() => grouped.map(g => g.subject), [grouped])
+  const activeGroup = useMemo(() => grouped.find(g => g.subject === selectedSubject), [grouped, selectedSubject])
   const overallColor = getHeatColor(overallScore)
 
   if (loading) {
@@ -179,182 +160,176 @@ export default function PerformanceScreen() {
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[styles.scroll, { paddingTop: 20, paddingBottom: Math.max(insets.bottom + 110, 110) }]}
-
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load() }} tintColor={Colors.primary} />}
-    >
-      <View style={styles.header}>
-        <View style={styles.iconBox}>
-          <Activity color={Colors.primary} size={24} strokeWidth={2.5} />
-        </View>
-        <Text style={styles.title}>Skill Matrix</Text>
-        <Text style={styles.subtitle}>{studentName.split(' ')[0]}&apos;s micro-concept mastery</Text>
-      </View>
-
-
-      <Animated.View entering={FadeInDown.duration(600).springify()}>
-        <LinearGradient 
-          colors={overallScore >= 70 ? (Colors.bg === '#030409' ? ['#052e16', '#022c22'] : ['#f0fdf4', '#dcfce7']) : overallScore >= 40 ? (Colors.bg === '#030409' ? ['#451a03', '#2e1001'] : ['#fff7ed', '#ffedd5']) : (Colors.bg === '#030409' ? ['#4c0519', '#2a020b'] : ['#fef2f2', '#fee2e2'])} 
-          style={[styles.overallCard, { borderColor: overallColor.text + '50' }]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.overallLeft}>
-            <Text style={[styles.overallScore, { color: overallColor.text }]}>{overallScore}<Text style={styles.pct}>%</Text></Text>
-            <View style={[styles.badge, { backgroundColor: overallColor.bg }]}>
-              <Text style={[styles.overallLabel, { color: overallColor.text }]}>{overallColor.label}</Text>
-            </View>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); initialize() }} tintColor={Colors.primary} />}
+      >
+        <View style={styles.header}>
+          <View style={styles.iconBox}>
+            <Activity color={Colors.primary} size={24} strokeWidth={2.5} />
           </View>
-          <View style={styles.overallRight}>
-            <View style={styles.targetRow}>
-              <Target color={Colors.muted} size={14} />
-              <Text style={styles.overallDesc}>Overall Academy Score</Text>
-            </View>
-            <View style={styles.overallBar}>
-              <View style={[styles.overallBarFill, { width: `${overallScore}%` as any, backgroundColor: overallColor.text }]} />
-            </View>
-          </View>
-        </LinearGradient>
-      </Animated.View>
-
-
-      {subjects.length > 1 && (
-        <Animated.View entering={FadeIn.duration(800).delay(200)}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs}>
-            {subjects.map(s => (
-              <TouchableOpacity
-                key={s}
-                onPress={() => setSelectedSubject(s)}
-                style={[styles.tab, selectedSubject === s && styles.tabActive]}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.tabText, selectedSubject === s && styles.tabTextActive]}>
-                  {s === 'Mathematics' ? '📐 Math' :
-                   s === 'Physics' ? '⚡ Physics' :
-                   s === 'Chemistry' ? '🧪 Chemistry' :
-                   s === 'Biology' ? '🌿 Biology' : s}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </Animated.View>
-      )}
-
-      {activeGroup ? (
-        activeGroup.chapters.map(({ chapter, concepts }, index) => (
-          <Animated.View entering={FadeInDown.duration(600).springify().delay(300 + index * 100)} key={chapter} style={styles.chapterBlock}>
-            <Text style={styles.chapterTitle}>{chapter}</Text>
-            <View style={styles.conceptGrid}>
-              {concepts.map(c => {
-                const heat = getHeatColor(c.percentage_score || 0)
-                return (
-                  <View key={c.micro_tag_id} style={[styles.conceptCell, { backgroundColor: heat.bg, borderColor: heat.text + '30' }]}>
-                    <View style={styles.conceptTop}>
-                      <Text style={[styles.conceptPct, { color: heat.text }]}>{Math.round(c.percentage_score || 0)}%</Text>
-                      <Zap color={heat.text} size={14} opacity={0.5} />
-                    </View>
-                    <Text style={[styles.conceptName, { color: Colors.text }]} numberOfLines={2}>{c.concept_name}</Text>
-                    <Text style={[styles.conceptBadge, { color: heat.text }]}>{heat.label}</Text>
-                    <View style={styles.conceptMeta}>
-                      <Text style={styles.conceptMetaText}>{c.questions_attempted} Q</Text>
-                      <Text style={styles.conceptMetaText}>{c.total_obtained}/{c.total_possible} pts</Text>
-                    </View>
-                  </View>
-                )
-              })}
-            </View>
-          </Animated.View>
-        ))
-      ) : (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyEmoji}>📊</Text>
-          <Text style={styles.emptyTitle}>No matrices available</Text>
-          <Text style={styles.emptySubtitle}>Granular performance data will reconstruct here after examinations.</Text>
+          <Text style={styles.title}>Skill Matrix</Text>
+          <Text style={styles.subtitle}>{(studentMetadata?.name || 'Student').split(' ')[0]}&apos;s micro-concept mastery</Text>
         </View>
-      )}
 
-      {/* NEW SECTION: Test Specific Insights appended below the main Overall Grid */}
-      {grouped.length > 0 && tests.length > 0 && (
-        <Animated.View entering={FadeIn.duration(600).delay(400)} style={{ marginTop: 24, marginBottom: 16 }}>
-          <View style={{ height: 1, backgroundColor: Colors.border, marginBottom: 24, opacity: 0.5 }} />
-          <Text style={[styles.chapterTitle, { marginBottom: 6 }]}>📝 Test Analyzer & Suggestions</Text>
-          <Text style={{ fontSize: 13, fontFamily: 'Outfit_500Medium', color: Colors.muted, marginBottom: 16 }}>Select a specific test results breakdown to view focused review suggestions.</Text>
-          
-          {/* Test Selector Slider */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.testSlider, { marginBottom: 16 }]} contentContainerStyle={styles.testSliderContent}>
-            <TouchableOpacity 
-              onPress={() => setSelectedTestId('all')} 
-              style={[styles.testPill, selectedTestId === 'all' && styles.testPillActive]}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.testPillText, selectedTestId === 'all' && styles.testPillTextActive]}>🌌 Overall Insights</Text>
-            </TouchableOpacity>
-            {tests.map(t => (
-              <TouchableOpacity
-                key={t.id}
-                onPress={() => setSelectedTestId(t.id)}
-                style={[styles.testPill, selectedTestId === t.id && styles.testPillActive]}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.testPillText, selectedTestId === t.id && styles.testPillTextActive]}>📝 {t.test_name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Areas Needing Focus Card rendering under selection */}
-          {lackingConcepts.length > 0 ? (
-            <View style={[styles.lackingCard, { borderColor: Colors.bg === '#030409' ? 'rgba(244,63,94,0.3)' : 'rgba(239,68,68,0.2)' }]}>
-              <View style={styles.lackingHeader}>
-                <View style={[styles.iconBoxSmall, { backgroundColor: Colors.bg === '#030409' ? 'rgba(239,68,68,0.1)' : '#fef2f2', borderColor: 'rgba(239,68,68,0.2)' }]}>
-                  <Target color="#f43f5e" size={16} strokeWidth={2.5} />
-                </View>
-                <Text style={[styles.lackingTitle, { color: Colors.text }]}>Areas Needing Focus</Text>
+        <Animated.View entering={FadeInDown.duration(600).springify()}>
+          <LinearGradient 
+            colors={overallScore >= 70 ? (Colors.bg === '#030409' ? ['#052e16', '#022c22'] : ['#f0fdf4', '#dcfce7']) : overallScore >= 40 ? (Colors.bg === '#030409' ? ['#451a03', '#2e1001'] : ['#fff7ed', '#ffedd5']) : (Colors.bg === '#030409' ? ['#4c0519', '#2a020b'] : ['#fef2f2', '#fee2e2'])} 
+            style={[styles.overallCard, { borderColor: overallColor.text + '50' }]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.overallLeft}>
+              <Text style={[styles.overallScore, { color: overallColor.text }]}>{overallScore}<Text style={styles.pct}>%</Text></Text>
+              <View style={[styles.badge, { backgroundColor: overallColor.bg }]}>
+                <Text style={[styles.overallLabel, { color: overallColor.text }]}>{overallColor.label}</Text>
               </View>
-              <Text style={styles.lackingSubtitle}>Targeted review recommended for {selectedTestId === 'all' ? 'overall performance' : 'this test'} benchmarks below 60%:</Text>
-              <View style={styles.lackingList}>
-                {lackingConcepts.map((c) => {
+            </View>
+            <View style={styles.overallRight}>
+              <View style={styles.targetRow}>
+                <Target color={Colors.muted} size={14} />
+                <Text style={styles.overallDesc}>Overall Academy Score</Text>
+              </View>
+              <View style={styles.overallBar}>
+                <View style={[styles.overallBarFill, { width: `${overallScore}%` as any, backgroundColor: overallColor.text }]} />
+              </View>
+            </View>
+          </LinearGradient>
+        </Animated.View>
+
+        {/* SECTION: Test Selector & Suggestions MOVED UP BELOW OVERALL SCORE */}
+        {grouped.length > 0 && tests.length > 0 && (
+          <Animated.View entering={FadeIn.duration(600).delay(400)} style={{ marginBottom: 32 }}>
+            <View style={styles.testHeaderRow}>
+              <Text style={styles.sectionLabel}>Test Analysis</Text>
+              <ChevronRight color={Colors.muted} size={14} />
+            </View>
+            
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.testSlider} contentContainerStyle={styles.testSliderContent}>
+              <TouchableOpacity 
+                onPress={() => setSelectedTestId('all')} 
+                style={[styles.testPill, selectedTestId === 'all' && styles.testPillActive]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.testPillText, selectedTestId === 'all' && styles.testPillTextActive]}>🌌 Overall</Text>
+              </TouchableOpacity>
+              {tests.map(t => (
+                <TouchableOpacity
+                  key={t.id}
+                  onPress={() => setSelectedTestId(t.id)}
+                  style={[styles.testPill, selectedTestId === t.id && styles.testPillActive]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.testPillText, selectedTestId === t.id && styles.testPillTextActive]}>📝 {t.test_name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {lackingConcepts.length > 0 ? (
+              <View style={[styles.lackingCard, { borderColor: Colors.bg === '#030409' ? 'rgba(244,63,94,0.3)' : 'rgba(239,68,68,0.2)' }]}>
+                <View style={styles.lackingHeader}>
+                  <View style={[styles.iconBoxSmall, { backgroundColor: Colors.bg === '#030409' ? 'rgba(239,68,68,0.1)' : '#fef2f2', borderColor: 'rgba(239,68,68,0.2)' }]}>
+                    <Target color="#f43f5e" size={16} strokeWidth={2.5} />
+                  </View>
+                  <Text style={[styles.lackingTitle, { color: Colors.text }]}>Review Needed</Text>
+                </View>
+                <View style={styles.lackingList}>
+                  {lackingConcepts.map((c) => {
+                    const heat = getHeatColor(c.percentage_score || 0)
+                    return (
+                      <View key={c.micro_tag_id} style={styles.lackingItem}>
+                        <View style={[styles.lackingItemDot, { backgroundColor: heat.text }]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.lackingItemText, { color: Colors.text }]}>{c.concept_name}</Text>
+                          <Text style={styles.lackingItemSub}>{c.subject} • {c.percentage_score}% Mastery</Text>
+                        </View>
+                      </View>
+                    )
+                  })}
+                </View>
+              </View>
+            ) : (
+              <View style={[styles.lackingCard, { borderColor: 'rgba(16,185,129,0.2)', alignItems: 'center', paddingVertical: 16 }]}>
+                <Text style={[styles.lackingTitle, { color: Colors.text, fontSize: 13 }]}>🎉 Great performance on this set!</Text>
+              </View>
+            )}
+          </Animated.View>
+        )}
+
+        {subjects.length > 1 && (
+          <Animated.View entering={FadeIn.duration(800).delay(200)}>
+            <Text style={[styles.sectionLabel, { marginBottom: 12 }]}>Deep Dive Matrix</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs}>
+              {subjects.map(s => (
+                <TouchableOpacity
+                  key={s}
+                  onPress={() => setSelectedSubject(s)}
+                  style={[styles.tab, selectedSubject === s && styles.tabActive]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.tabText, selectedSubject === s && styles.tabTextActive]}>
+                    {s === 'Mathematics' ? '📐 Math' :
+                     s === 'Physics' ? '⚡ Physics' :
+                     s === 'Chemistry' ? '🧪 Chemistry' :
+                     s === 'Biology' ? '🌿 Biology' : s}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        )}
+
+        {activeGroup ? (
+          activeGroup.chapters.map(({ chapter, concepts }, index) => (
+            <Animated.View entering={FadeInDown.duration(600).springify().delay(index * 50)} key={chapter} style={styles.chapterBlock}>
+              <Text style={styles.chapterTitle}>{chapter}</Text>
+              <View style={styles.conceptGrid}>
+                {concepts.map(c => {
                   const heat = getHeatColor(c.percentage_score || 0)
                   return (
-                    <View key={c.micro_tag_id} style={styles.lackingItem}>
-                      <View style={[styles.lackingItemDot, { backgroundColor: heat.text }]} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.lackingItemText, { color: Colors.text }]}>{c.concept_name}</Text>
-                        <Text style={styles.lackingItemSub}>{c.subject} • {c.percentage_score}% Mastery</Text>
+                    <View key={c.micro_tag_id} style={[styles.conceptCell, { backgroundColor: heat.bg, borderColor: heat.text + '30' }]}>
+                      <View style={styles.conceptTop}>
+                        <Text style={[styles.conceptPct, { color: heat.text }]}>{Math.round(c.percentage_score || 0)}%</Text>
+                        <Zap color={heat.text} size={14} opacity={0.5} />
+                      </View>
+                      <Text style={[styles.conceptName, { color: Colors.text }]} numberOfLines={2}>{c.concept_name}</Text>
+                      <Text style={[styles.conceptBadge, { color: heat.text }]}>{heat.label}</Text>
+                      <View style={styles.conceptMeta}>
+                        <Text style={styles.conceptMetaText}>{c.questions_attempted} Q</Text>
+                        <Text style={styles.conceptMetaText}>{c.total_obtained}/{c.total_possible} pts</Text>
                       </View>
                     </View>
                   )
                 })}
               </View>
-            </View>
-          ) : (
-            <View style={[styles.lackingCard, { borderColor: 'rgba(16,185,129,0.2)', alignItems: 'center', paddingVertical: 24 }]}>
-              <Text style={{ fontSize: 32, marginBottom: 8 }}>🎉</Text>
-              <Text style={[styles.lackingTitle, { color: Colors.text }]}>All Caught Up!</Text>
-              <Text style={[styles.lackingSubtitle, { textAlign: 'center' }]}>{selectedTestId === 'all' ? 'Overall performance' : 'Test scores'} look great with no concepts scoring below 60%.</Text>
-            </View>
-          )}
-        </Animated.View>
-      )}
-
-      {grouped.length > 0 && (
-        <Animated.View entering={FadeIn.duration(1000).delay(600)} style={styles.legendCard}>
-          <Text style={styles.legendTitle}>Mastery Spectrum</Text>
-          <View style={styles.legendRow}>
-            {[
-              { range: '≥85%', label: 'Excellent', color: '#34D399' },
-              { range: '70–84%', label: 'Strong', color: '#6EE7B7' },
-              { range: '55–69%', label: 'Good', color: '#FCD34D' },
-              { range: '40–54%', label: 'Needs Work', color: '#FDBA74' },
-              { range: '25–39%', label: 'Weak', color: '#FCA5A5' },
-              { range: '<25%', label: 'Critical', color: '#F87171' },
-            ].map(l => (
-              <View key={l.range} style={[styles.legendItem, { backgroundColor: Colors.bg === '#030409' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)' }]}>
-                <View style={[styles.legendDot, { backgroundColor: l.color }]} />
-                <Text style={[styles.legendText, { color: Colors.text }]}>{l.label}</Text>
-                <Text style={styles.legendRange}>{l.range}</Text>
-              </View>
-            ))}
+            </Animated.View>
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>📊</Text>
+            <Text style={styles.emptyTitle}>No matrices available</Text>
+            <Text style={styles.emptySubtitle}>Granular performance data will reconstruct here after examinations.</Text>
           </View>
-        </Animated.View>
-      )}
+        )}
+
+        {grouped.length > 0 && (
+          <Animated.View entering={FadeIn.duration(1000).delay(600)} style={styles.legendCard}>
+            <Text style={styles.legendTitle}>Mastery Spectrum</Text>
+            <View style={styles.legendRow}>
+              {[
+                { range: '≥85%', label: 'Excellent', color: '#34D399' },
+                { range: '70–84%', label: 'Strong', color: '#6EE7B7' },
+                { range: '55–69%', label: 'Good', color: '#FCD34D' },
+                { range: '40–54%', label: 'Needs Work', color: '#FDBA74' },
+                { range: '25–39%', label: 'Weak', color: '#FCA5A5' },
+                { range: '<25%', label: 'Critical', color: '#F87171' },
+              ].map(l => (
+                <View key={l.range} style={[styles.legendItem, { backgroundColor: Colors.bg === '#030409' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)' }]}>
+                  <View style={[styles.legendDot, { backgroundColor: l.color }]} />
+                  <Text style={[styles.legendText, { color: Colors.text }]}>{l.label}</Text>
+                  <Text style={styles.legendRange}>{l.range}</Text>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+        )}
       </ScrollView>
     </View>
   )
@@ -449,4 +424,7 @@ const getStyles = (Colors: any) => StyleSheet.create({
   lackingItemDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
   lackingItemText: { fontSize: 14, fontFamily: 'Outfit_600SemiBold' },
   lackingItemSub: { fontSize: 12, fontFamily: 'Outfit_500Medium', color: Colors.muted, marginTop: 2 },
+
+  sectionLabel: { fontSize: 12, fontFamily: 'Outfit_700Bold', color: Colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  testHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingRight: 4 },
 })

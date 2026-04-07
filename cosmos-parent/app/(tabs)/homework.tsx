@@ -1,6 +1,7 @@
 // app/(tabs)/homework.tsx
 import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, Linking } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase, type HomeworkSubmission } from '../../lib/supabase'
 import { useColors } from '../../constants/theme'
 import { BookOpen, AlertCircle, Calendar, CheckCircle2, Star, Clock, FileText } from 'lucide-react-native'
@@ -18,24 +19,39 @@ export default function HomeworkScreen() {
   const [refreshing, setRefreshing] = useState(false)
 
   const load = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    try {
+      // 1. Load cached data for instant UI
+      const cached = await AsyncStorage.getItem('homework_submissions_cache')
+      if (cached) {
+        setSubmissions(JSON.parse(cached))
+        setLoading(false)
+      }
 
-    const { data: parentUser } = await supabase.from('users').select('id').eq('auth_id', user.id).single()
-    if (!parentUser) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-    const { data: student } = await supabase.from('students').select('id').eq('parent_id', parentUser.id).eq('is_active', true).single()
-    if (!student) return
+      const { data: parentUser } = await supabase.from('users').select('id').eq('auth_id', user.id).single()
+      if (!parentUser) return
 
-    const { data, error } = await supabase
-      .from('homework_submissions')
-      .select('*, homework(title, description, due_date, attachment_url)')
-      .eq('student_id', student.id)
+      const { data: student } = await supabase.from('students').select('id').eq('parent_id', parentUser.id).eq('is_active', true).single()
+      if (!student) return
 
-    if (error) { console.error('Error fetching homework submissions:', error) }
-    setSubmissions(data || [])
-    setLoading(false)
-    setRefreshing(false)
+      const { data, error } = await supabase
+        .from('homework_submissions')
+        .select('*, homework(title, description, due_date, attachment_url)')
+        .eq('student_id', student.id)
+
+      if (error) { console.error('Error fetching homework submissions:', error) }
+      if (data) {
+        setSubmissions(data)
+        AsyncStorage.setItem('homework_submissions_cache', JSON.stringify(data))
+      }
+    } catch (e) {
+      console.warn('Network or cache error', e)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
   }
 
   useEffect(() => { load() }, [])
