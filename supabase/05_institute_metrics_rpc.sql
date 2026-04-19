@@ -15,8 +15,8 @@ SECURITY DEFINER -- Bypasses RLS so it can count rows even if caller lacks SELEC
 SET search_path = public
 AS $$
 BEGIN
-    -- Only allow super_admin or admin to execute this logic
-    IF (SELECT role FROM public.users WHERE auth_id = auth.uid() LIMIT 1) NOT IN ('super_admin', 'admin') THEN
+    -- Only allow super_admin to execute this logic
+    IF (SELECT role FROM public.users WHERE auth_id = auth.uid() LIMIT 1) != 'super_admin' THEN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
 

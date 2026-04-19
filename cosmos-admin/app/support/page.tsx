@@ -4,9 +4,11 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { Headphones, Phone, Mail, Send, CheckCircle, ShieldAlert, Loader2, MessageCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { useGlobalContext } from '@/lib/GlobalContext'
 
 export default function SupportPage() {
     const supabase = createClient()
+    const { selectedInstituteId } = useGlobalContext()
     const [loading, setLoading] = useState(false)
     const [submitted, setSubmitted] = useState(false)
     const [form, setForm] = useState({ subject: '', message: '', priority: 'medium' })
@@ -23,7 +25,8 @@ export default function SupportPage() {
                 user_id: user?.id,
                 subject: form.subject,
                 message: form.message,
-                priority: form.priority
+                priority: form.priority,
+                institute_id: selectedInstituteId !== 'all' ? selectedInstituteId : null
             })
 
         if (error) {

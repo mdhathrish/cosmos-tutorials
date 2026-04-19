@@ -11,9 +11,6 @@ interface AttendanceRow { student: Student; log: AttendanceLog | null }
 
 import { useGlobalContext } from '@/lib/GlobalContext'
 
-interface Student { id: string; full_name: string; batch_id: string; parent_id: string; is_active: boolean }
-interface AttendanceRow { student: Student; log: AttendanceLog | null }
-
 export default function AttendancePage() {
   const supabase = createClient()
   const { selectedInstituteId, role } = useGlobalContext()

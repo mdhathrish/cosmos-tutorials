@@ -136,7 +136,7 @@ export default function Sidebar() {
           </div>
         )}
         <div className="px-3 py-1 mb-4 text-cosmos-muted text-[10px] uppercase tracking-widest font-black opacity-50">
-          IIT Foundation
+          {currentInstitute?.tagline || 'Cosmos Platform'}
         </div>
         <button 
           onClick={handleSignOut}

@@ -62,7 +62,7 @@ export default function InboxPage() {
     return () => {
       supabase.removeChannel(listChannel)
     }
-  }, [])
+  }, [selectedInstituteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (selectedConv) {

@@ -154,6 +154,7 @@ export default function BatchesPage() {
 
 function BatchModal({ batch, onClose, onSaved }: any) {
   const supabase = createClient()
+  const { selectedInstituteId } = useGlobalContext()
   const [form, setForm] = useState({
     batch_name: batch?.batch_name || '',
     grade: batch?.grade || 8,
@@ -174,12 +175,13 @@ function BatchModal({ batch, onClose, onSaved }: any) {
     if (!form.batch_name.trim()) { toast.error('Please enter a batch name'); return }
     if (!form.timing_start || !form.timing_end) { toast.error('Please set start and end times'); return }
     if (form.days_of_week.length === 0) { toast.error('Please select at least one day'); return }
+    if (!batch && selectedInstituteId === 'all') { toast.error('Please select a specific institute first'); return }
     setSaving(true)
     if (batch) {
       const { error } = await supabase.from('batches').update(form).eq('id', batch.id)
       if (error) { toast.error(friendlyError(error)); setSaving(false); return }
     } else {
-      const { error } = await supabase.from('batches').insert(form)
+      const { error } = await supabase.from('batches').insert({ ...form, institute_id: selectedInstituteId })
       if (error) { toast.error(friendlyError(error)); setSaving(false); return }
     }
     toast.success(batch ? 'Batch updated!' : 'Batch created!')

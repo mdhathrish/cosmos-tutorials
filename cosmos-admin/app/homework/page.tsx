@@ -157,6 +157,7 @@ export default function HomeworkPage() {
 
 function HomeworkModal({ batches, onClose, onSaved }: any) {
     const supabase = createClient()
+    const { selectedInstituteId } = useGlobalContext()
     const [form, setForm] = useState({
         batch_id: '',
         title: '',
@@ -195,7 +196,8 @@ function HomeworkModal({ batches, onClose, onSaved }: any) {
             title: form.title,
             description: form.description || null,
             due_date: form.due_date,
-            attachment_url: attachmentUrl
+            attachment_url: attachmentUrl,
+            institute_id: selectedInstituteId
         }).select().single()
 
         if (error) { toast.error(friendlyError(error)); setSaving(false); return }

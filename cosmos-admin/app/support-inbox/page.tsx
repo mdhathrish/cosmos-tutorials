@@ -4,11 +4,37 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { LifeBuoy, Building2, Clock, CheckCircle2, AlertCircle, Loader2, Mail } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { useRouter } from 'next/navigation'
+import { useGlobalContext } from '@/lib/GlobalContext'
 
 export default function SupportInboxPage() {
     const supabase = createClient()
+    const router = useRouter()
+    const { role } = useGlobalContext()
     const [tickets, setTickets] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+
+    // Route Protection: Only Super Admins can access this page
+    useEffect(() => {
+        if (role && role !== 'super_admin') {
+            router.push('/dashboard')
+        }
+    }, [role, router])
+
+    if (!role) {
+        return (
+            <div className="flex min-h-screen bg-cosmos-bg star-bg">
+                <Sidebar />
+                <main className="md:ml-64 flex-1 flex items-center justify-center">
+                    <Loader2 className="animate-spin text-cosmos-primary" size={32} />
+                </main>
+            </div>
+        )
+    }
+
+    if (role !== 'super_admin') {
+        return null // Will redirect in useEffect
+    }
 
     const loadTickets = async () => {
         setLoading(true)

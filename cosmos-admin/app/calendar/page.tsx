@@ -64,6 +64,11 @@ export default function CalendarPage() {
     e.preventDefault()
     if (!form.title.trim() || !form.event_date) return
 
+    if (selectedInstituteId === 'all') {
+      toast.error('Please select a specific institute to create an event.')
+      return
+    }
+
     setSending(true)
     const { error } = await supabase
       .from('calendar_events')
@@ -72,7 +77,8 @@ export default function CalendarPage() {
         description: form.description.trim() || null,
         event_type: form.event_type,
         event_date: form.event_date,
-        batch_id: form.batch_id === '' ? null : form.batch_id
+        batch_id: form.batch_id === '' ? null : form.batch_id,
+        institute_id: selectedInstituteId
       })
 
     if (error) {
