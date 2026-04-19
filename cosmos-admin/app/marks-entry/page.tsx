@@ -15,8 +15,11 @@ interface ScoreRow {
 }
 
 
+import { useGlobalContext } from '@/lib/GlobalContext'
+
 export default function MarksEntryPage() {
   const supabase = createClient()
+  const { selectedInstituteId, role } = useGlobalContext()
 
   const [batches, setBatches] = useState<Batch[]>([])
   const [tests, setTests] = useState<Test[]>([])
@@ -34,12 +37,24 @@ export default function MarksEntryPage() {
 
   const gridRef = useRef<HTMLTableElement>(null)
 
-  // Load batches on mount
+  // Load batches on mount / context change
   useEffect(() => {
-    supabase.from('batches').select('*').eq('is_active', true).order('grade').then(({ data }) => {
-      if (data) setBatches(data)
+    let query = supabase.from('batches').select('*').eq('is_active', true).order('grade')
+    if (selectedInstituteId !== 'all') {
+      query = query.eq('institute_id', selectedInstituteId)
+    }
+
+    query.then(({ data }) => {
+      if (data) {
+        setBatches(data)
+        if (selectedBatch && !data.find(b => b.id === selectedBatch)) {
+          setSelectedBatch('')
+          setSelectedTest('')
+          setScoreRows([])
+        }
+      }
     })
-  }, [])
+  }, [selectedInstituteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load tests when batch selected
   useEffect(() => {

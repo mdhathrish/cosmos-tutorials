@@ -20,10 +20,12 @@ export default function StudentReportPage() {
 
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<ReportData | null>(null)
+  const [aiSummary, setAiSummary] = useState<string>('')
+  const [generatingAI, setGeneratingAI] = useState(false)
 
   useEffect(() => {
     if (id) loadReportData()
-  }, [id])
+  }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadReportData() {
     setLoading(true)
@@ -85,6 +87,34 @@ export default function StudentReportPage() {
     window.print()
   }
 
+  const handleGenerateAI = async () => {
+    if (!data) return;
+    setGeneratingAI(true);
+    try {
+        const res = await fetch('/api/generate-report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                studentName: data.student.full_name,
+                overallScore: data.overallScore,
+                attendance: data.attendance,
+                strongConcepts: data.strongConcepts,
+                weakConcepts: data.weakConcepts
+            })
+        });
+        const result = await res.json();
+        if (result.error) {
+            alert('Failed to generate AI summary: ' + result.error);
+        } else {
+            setAiSummary(result.summary);
+        }
+    } catch (e: any) {
+        alert('Network error during AI generation.');
+    } finally {
+        setGeneratingAI(false);
+    }
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen bg-cosmos-bg"><Loader2 size={28} className="animate-spin text-cosmos-primary" /></div>
   }
@@ -117,7 +147,7 @@ export default function StudentReportPage() {
         </div>
 
         {/* Student Information */}
-        <div className="grid grid-cols-2 gap-6 mb-10 bg-neutral-50 print:bg-neutral-50 p-6 rounded-xl border border-neutral-200/50">
+        <div className="grid grid-cols-2 gap-6 mb-8 bg-neutral-50 print:bg-neutral-50 p-6 rounded-xl border border-neutral-200/50">
           <div>
             <p className="text-xs text-neutral-400 uppercase tracking-wider font-semibold">Student Name</p>
             <p className="font-display text-xl font-bold text-neutral-800 mt-0.5">{data.student.full_name}</p>
@@ -132,6 +162,29 @@ export default function StudentReportPage() {
               <p className="font-semibold text-neutral-800 mt-0.5">{data.student.batches?.batch_name || 'General'}</p>
             </div>
           </div>
+        </div>
+
+        {/* AI Parent Summary Section */}
+        <div className="mb-10 print:mb-6">
+            <div className="flex items-center justify-between mb-3 print:hidden">
+                <h3 className="font-display font-bold text-base text-neutral-800 flex items-center gap-2">
+                    <span className="text-cosmos-blue">✨</span> AI Parent Summary
+                </h3>
+                <button onClick={handleGenerateAI} disabled={generatingAI} className="text-xs btn-primary py-1.5 px-3">
+                    {generatingAI ? <Loader2 size={14} className="animate-spin inline mr-1" /> : null}
+                    {aiSummary ? 'Regenerate Summary' : 'Generate Summary'}
+                </button>
+            </div>
+            
+            {aiSummary ? (
+                <div className="bg-cosmos-blue/5 border border-cosmos-blue/20 rounded-xl p-5">
+                    <p className="text-sm text-neutral-700 leading-relaxed italic">{aiSummary}</p>
+                </div>
+            ) : (
+                <div className="bg-neutral-50 border border-neutral-200 border-dashed rounded-xl p-5 text-center print:hidden">
+                    <p className="text-xs text-neutral-400">Click &quot;Generate Summary&quot; to use AI to write a personalized note based on these metrics.</p>
+                </div>
+            )}
         </div>
 
         {/* Big Metrics Grid */}

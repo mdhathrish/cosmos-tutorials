@@ -9,8 +9,14 @@ import toast from 'react-hot-toast'
 interface Student { id: string; full_name: string; batch_id: string; parent_id: string; is_active: boolean }
 interface AttendanceRow { student: Student; log: AttendanceLog | null }
 
+import { useGlobalContext } from '@/lib/GlobalContext'
+
+interface Student { id: string; full_name: string; batch_id: string; parent_id: string; is_active: boolean }
+interface AttendanceRow { student: Student; log: AttendanceLog | null }
+
 export default function AttendancePage() {
   const supabase = createClient()
+  const { selectedInstituteId, role } = useGlobalContext()
   const [batches, setBatches] = useState<Batch[]>([])
   const [selectedBatch, setSelectedBatch] = useState('')
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -19,8 +25,19 @@ export default function AttendancePage() {
   const [saving, setSaving] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.from('batches').select('*').eq('is_active', true).then(({ data }) => setBatches(data || []))
-  }, [])
+    let query = supabase.from('batches').select('*').eq('is_active', true)
+    if (selectedInstituteId !== 'all') {
+      query = query.eq('institute_id', selectedInstituteId)
+    }
+    
+    query.then(({ data }) => {
+        const list = data || []
+        setBatches(list)
+        if (selectedBatch && !list.find(b => b.id === selectedBatch)) {
+            setSelectedBatch('')
+        }
+    })
+  }, [selectedInstituteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selectedBatch) return

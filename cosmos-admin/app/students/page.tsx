@@ -4,17 +4,20 @@ import { useEffect, useState } from 'react'
 import { createClient, type Student, type Batch } from '@/lib/supabase'
 import { friendlyError } from '@/lib/errors'
 import Sidebar from '@/components/Sidebar'
-import { Plus, Search, Loader2, UserPlus, Pencil, Trash2, Eye, EyeOff, Copy } from 'lucide-react'
+import { Plus, Search, Loader2, UserPlus, Pencil, Trash2, Eye, EyeOff, Copy, Building2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+import { useGlobalContext } from '@/lib/GlobalContext'
 
 interface StudentWithBatch extends Student {
   batches?: { batch_name: string; grade: number; subject: string }
   users?: { id: string, auth_id: string, email: string | null; full_name: string }
+  institutes?: { name: string }
 }
-
 
 export default function StudentsPage() {
   const supabase = createClient()
+  const { selectedInstituteId, role } = useGlobalContext()
   const [students, setStudents] = useState<StudentWithBatch[]>([])
   const [batches, setBatches] = useState<Batch[]>([])
   const [loading, setLoading] = useState(true)
@@ -23,20 +26,29 @@ export default function StudentsPage() {
   const [editStudent, setEditStudent] = useState<StudentWithBatch | null>(null)
 
   const loadStudents = async () => {
-    const { data } = await supabase
+    setLoading(true)
+    let query = supabase
       .from('students')
-      .select('*, batches(batch_name, grade, subject), users(id, auth_id, email, full_name)')
+      .select('*, batches(batch_name, grade, subject), users(id, auth_id, email, full_name), institutes(name)')
       .eq('is_active', true)
 
-      .order('full_name')
+    if (selectedInstituteId !== 'all') {
+      query = query.eq('institute_id', selectedInstituteId)
+    }
+
+    const { data } = await query.order('full_name')
     setStudents(data || [])
     setLoading(false)
   }
 
   useEffect(() => {
     loadStudents()
-    supabase.from('batches').select('*').eq('is_active', true).then(({ data }) => setBatches(data || []))
-  }, [])
+    let batchQuery = supabase.from('batches').select('*').eq('is_active', true)
+    if (selectedInstituteId !== 'all') {
+      batchQuery = batchQuery.eq('institute_id', selectedInstituteId)
+    }
+    batchQuery.then(({ data }) => setBatches(data || []))
+  }, [selectedInstituteId, supabase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = students.filter(s =>
     s.full_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -88,6 +100,7 @@ export default function StudentsPage() {
               <thead>
                 <tr>
                   <th>Student</th><th>Grade</th><th>Batch</th>
+                  {role === 'super_admin' && <th>Institute</th>}
                   <th>Parent Email</th><th>Enrolled</th><th className="text-right">Actions</th>
                 </tr>
               </thead>
@@ -97,6 +110,14 @@ export default function StudentsPage() {
                     <td className="font-medium text-cosmos-text">{s.full_name}</td>
                     <td><span className="badge-blue">Grade {s.grade}</span></td>
                     <td className="text-cosmos-cyan">{s.batches?.batch_name || '—'}</td>
+                    {role === 'super_admin' && (
+                      <td>
+                        <div className="flex items-center gap-1.5 text-cosmos-muted text-xs font-bold uppercase tracking-tighter">
+                          <Building2 size={12} className="text-cosmos-primary" />
+                          {s.institutes?.name || 'Unknown'}
+                        </div>
+                      </td>
+                    )}
                     <td>
                       {s.users?.email ? (
                         <div className="flex items-center gap-2">

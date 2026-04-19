@@ -12,8 +12,11 @@ interface Notice {
   created_at: string
 }
 
+import { useGlobalContext } from '@/lib/GlobalContext'
+
 export default function NoticesPage() {
   const supabase = createClient()
+  const { selectedInstituteId, role } = useGlobalContext()
   const [notices, setNotices] = useState<Notice[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -24,15 +27,20 @@ export default function NoticesPage() {
 
   useEffect(() => {
     loadNotices()
-  }, [])
+  }, [selectedInstituteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadNotices() {
     setLoading(true)
-    const { data } = await supabase
+    let query = supabase
       .from('notices')
       .select('*')
       .order('created_at', { ascending: false })
 
+    if (selectedInstituteId !== 'all') {
+      query = query.eq('institute_id', selectedInstituteId)
+    }
+
+    const { data } = await query
     if (data) setNotices(data)
     setLoading(false)
   }
@@ -40,13 +48,21 @@ export default function NoticesPage() {
   const handleSendNotice = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim() || !content.trim()) return
+    if (selectedInstituteId === 'all') {
+        toast.error('Please select a specific institute to send this notice.')
+        return
+    }
 
     setSending(true)
     try {
       const res = await fetch('/api/send-notice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), content: content.trim() })
+        body: JSON.stringify({ 
+            title: title.trim(), 
+            content: content.trim(),
+            institute_id: selectedInstituteId 
+        })
       })
 
       const result = await res.json()

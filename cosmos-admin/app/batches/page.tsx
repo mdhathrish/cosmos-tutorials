@@ -4,24 +4,33 @@ import { useEffect, useState } from 'react'
 import { createClient, type Batch } from '@/lib/supabase'
 import { friendlyError } from '@/lib/errors'
 import Sidebar from '@/components/Sidebar'
-import { Plus, Loader2, Pencil, Trash2, Clock, Users } from 'lucide-react'
+import { Plus, Loader2, Pencil, Trash2, Clock, Users, Building2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+import { useGlobalContext } from '@/lib/GlobalContext'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export default function BatchesPage() {
   const supabase = createClient()
-  const [batches, setBatches] = useState<Batch[]>([])
+  const { selectedInstituteId, role } = useGlobalContext()
+  const [batches, setBatches] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editBatch, setEditBatch] = useState<Batch | null>(null)
   const [studentCounts, setStudentCounts] = useState<{ [id: string]: number }>({})
 
   const load = async () => {
-    const { data } = await supabase.from('batches').select('*').eq('is_active', true).order('grade')
+    setLoading(true)
+    let query = supabase.from('batches').select('*, institutes(name)').eq('is_active', true)
+    
+    if (selectedInstituteId !== 'all') {
+      query = query.eq('institute_id', selectedInstituteId)
+    }
+
+    const { data } = await query.order('grade')
     if (data) {
       setBatches(data)
-      // Get student counts per batch
       const counts: { [id: string]: number } = {}
       await Promise.all(data.map(async (b) => {
         const { count } = await supabase.from('students').select('*', { count: 'exact', head: true }).eq('batch_id', b.id).eq('is_active', true)
@@ -32,7 +41,7 @@ export default function BatchesPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [selectedInstituteId])
 
   const handleDelete = async (id: string) => {
     if (!confirm('Deactivate this batch?')) return
@@ -74,9 +83,15 @@ export default function BatchesPage() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-display font-bold text-cosmos-text">{b.batch_name}</h3>
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
                         <span className="badge-purple">Grade {b.grade}</span>
                         <span className={subjectColors[b.subject] || 'badge-cyan'}>{b.subject}</span>
+                        {role === 'super_admin' && (
+                          <span className="bg-cosmos-primary/10 text-cosmos-primary text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 border border-cosmos-primary/20">
+                            <Building2 size={10} />
+                            {b.institutes?.name || 'Center'}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

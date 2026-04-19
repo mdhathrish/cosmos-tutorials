@@ -4,12 +4,14 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { Loader2, Plus, UserPlus, Trash2, CheckCircle, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useGlobalContext } from '@/lib/GlobalContext'
 
 interface Teacher {
   id: string
   full_name: string
   email: string | null
   phone: string | null
+  institute_id: string
 }
 
 interface Batch {
@@ -20,6 +22,7 @@ interface Batch {
 
 export default function TeachersPage() {
   const supabase = createClient()
+  const { selectedInstituteId, role } = useGlobalContext()
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [batches, setBatches] = useState<Batch[]>([])
   const [loading, setLoading] = useState(true)
@@ -34,23 +37,35 @@ export default function TeachersPage() {
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [selectedInstituteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadData() {
     setLoading(true)
     
     // 1. Fetch teachers
-    const { data: tData } = await supabase
+    let tQuery = supabase
       .from('users')
-      .select('id, full_name, email, phone')
+      .select('id, full_name, email, phone, institute_id')
       .eq('role', 'teacher')
-    if (tData) setTeachers(tData)
+    
+    if (selectedInstituteId !== 'all') {
+      tQuery = tQuery.eq('institute_id', selectedInstituteId)
+    }
+    
+    const { data: tData } = await tQuery
+    if (tData) setTeachers(tData as Teacher[])
 
     // 2. Fetch batches
-    const { data: bData } = await supabase
+    let bQuery = supabase
       .from('batches')
       .select('id, batch_name, grade')
       .eq('is_active', true)
+
+    if (selectedInstituteId !== 'all') {
+      bQuery = bQuery.eq('institute_id', selectedInstituteId)
+    }
+    
+    const { data: bData } = await bQuery
     if (bData) setBatches(bData)
 
     setLoading(false)
@@ -100,10 +115,14 @@ export default function TeachersPage() {
     if (!createForm.full_name || !createForm.email || !createForm.password) return
 
     setCreating(true)
-    const res = await fetch('/api/create-teacher', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createForm)
+    const res = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ...createForm,
+            role: 'teacher',
+            institute_id: selectedInstituteId === 'all' ? null : selectedInstituteId
+        })
     })
     const result = await res.json()
 
@@ -132,9 +151,18 @@ export default function TeachersPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-display text-2xl font-bold text-cosmos-text">Teachers & Access</h1>
-            <p className="text-cosmos-muted text-sm mt-1">Manage staff privileges and access scopes to assigned batches dashboards.</p>
+            <p className="text-cosmos-muted text-sm mt-1">Manage staff privileges and access scopes for {selectedInstituteId === 'all' ? 'all institutes' : 'this center'}.</p>
           </div>
-          <button onClick={() => setShowCreateModal(true)} className="btn-primary flex items-center gap-2 text-sm">
+          <button 
+            onClick={() => {
+                if(selectedInstituteId === 'all') {
+                    toast.error('Select an institute to add a teacher')
+                } else {
+                    setShowCreateModal(true)
+                }
+            }} 
+            className="btn-primary flex items-center gap-2 text-sm"
+          >
             <UserPlus size={16} /> Add Teacher
           </button>
         </div>
@@ -142,18 +170,18 @@ export default function TeachersPage() {
         {loading ? (
           <div className="flex items-center justify-center h-48"><Loader2 size={28} className="animate-spin text-cosmos-primary" /></div>
         ) : teachers.length === 0 ? (
-          <div className="cosmos-card text-center py-12 text-cosmos-muted">No teachers on record. Promote a user to teacher role via Supabase to enable access control managers here.</div>
+          <div className="cosmos-card text-center py-12 text-cosmos-muted">No teachers found in this scope. Add a teacher or change center.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {teachers.map(t => (
               <div key={t.id} className="cosmos-card border border-cosmos-border/50 group hover:border-cosmos-primary/40 p-5 transition-all">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 rounded-full bg-cosmos-primary/10 flex items-center justify-center font-bold text-cosmos-primary">
-                    {t.full_name[0].toUpperCase()}
+                    {t.full_name?.[0]?.toUpperCase() || 'U'}
                   </div>
                   <div>
                     <h3 className="font-display font-bold text-cosmos-text text-sm leading-none">{t.full_name}</h3>
-                    <p className="text-cosmos-muted text-xs mt-1">{t.email || t.phone || 'No contact contact'}</p>
+                    <p className="text-cosmos-muted text-xs mt-1">{t.email || t.phone || 'No contact'}</p>
                   </div>
                 </div>
 
@@ -186,6 +214,9 @@ export default function TeachersPage() {
                       checked={assignedBatches.includes(b.id)} onChange={() => toggleBatch(b.id)} />
                   </label>
                 ))}
+                {batches.length === 0 && (
+                    <div className="text-center py-6 text-cosmos-muted text-xs">No batches available to assign.</div>
+                )}
               </div>
               <div className="p-5 border-t border-cosmos-border flex justify-end gap-3">
                 <button onClick={() => setShowModal(false)} className="btn-secondary text-xs">Cancel</button>

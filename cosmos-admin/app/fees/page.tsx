@@ -18,8 +18,11 @@ interface FeeRecord {
   }
 }
 
+import { useGlobalContext } from '@/lib/GlobalContext'
+
 export default function FeesDashboard() {
   const supabase = createClient()
+  const { selectedInstituteId, role } = useGlobalContext()
   const [records, setRecords] = useState<FeeRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState<string>('submitted') // Default to submitted for review
@@ -34,15 +37,19 @@ export default function FeesDashboard() {
   useEffect(() => {
     loadRecords()
     // Load config
-    supabase.from('app_settings').select('*').in('key', ['upi_id', 'upi_payee_name']).then(({ data }) => {
+    let sQuery = supabase.from('app_settings').select('*').in('key', ['upi_id', 'upi_payee_name'])
+    if (selectedInstituteId !== 'all') {
+        sQuery = sQuery.eq('institute_id', selectedInstituteId)
+    }
+    sQuery.then(({ data }) => {
       if (data) {
         const id = data.find(d => d.key === 'upi_id')?.value
         const name = data.find(d => d.key === 'upi_payee_name')?.value
-        if (id) setUpiId(id)
-        if (name) setPayeeName(name)
+        setUpiId(id || '')
+        setPayeeName(name || '')
       }
     })
-  }, [filterStatus])
+  }, [filterStatus, selectedInstituteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadRecords() {
     setLoading(true)
@@ -50,9 +57,13 @@ export default function FeesDashboard() {
       .from('fee_records')
       .select(`
         *,
-        students ( full_name )
+        students ( full_name, institute_id )
       `)
       .order('submitted_at', { ascending: false })
+
+    if (selectedInstituteId !== 'all') {
+        query = query.eq('institute_id', selectedInstituteId)
+    }
 
     if (filterStatus !== 'all') {
       query = query.eq('status', filterStatus)

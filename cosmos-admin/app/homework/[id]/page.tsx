@@ -2,9 +2,10 @@
 import { useEffect, useState, use } from 'react'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
-import { Loader2, ArrowLeft, CheckCircle, AlertCircle, ExternalLink, FileText } from 'lucide-react'
+import { Loader2, ArrowLeft, CheckCircle, AlertCircle, ExternalLink, FileText, Sparkles, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
+import { useRef } from 'react'
 
 export default function HomeworkDetail({ params }: { params: { id: string } }) {
     const { id } = params
@@ -12,6 +13,9 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
     const [hw, setHw] = useState<any>(null)
     const [subs, setSubs] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [aiGradingId, setAiGradingId] = useState<string | null>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [selectedSubForAi, setSelectedSubForAi] = useState<any>(null)
 
     const load = async () => {
         const { data: hwData } = await supabase
@@ -91,6 +95,57 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
         else { toast.success('Grade saved'); load() }
     }
 
+    const handleAiGradeClick = (sub: any) => {
+        setSelectedSubForAi(sub)
+        if (fileInputRef.current) fileInputRef.current.click()
+    }
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file || !selectedSubForAi) return
+
+        if (!file.type.startsWith('image/')) {
+            toast.error('Please select an image file (JPG/PNG).')
+            return
+        }
+
+        setAiGradingId(selectedSubForAi.id)
+        
+        try {
+            const reader = new FileReader()
+            reader.readAsDataURL(file)
+            reader.onload = async () => {
+                const base64Str = reader.result?.toString() || ''
+                // Remove data:image/jpeg;base64, prefix
+                const base64Data = base64Str.split(',')[1]
+
+                const res = await fetch('/api/grade-homework', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        imageBase64: base64Data,
+                        mimeType: file.type,
+                        homeworkTitle: hw?.title || 'Unknown Homework',
+                        homeworkDescription: hw?.description || 'No description provided.'
+                    })
+                })
+
+                const data = await res.json()
+                if (!res.ok) throw new Error(data.error || 'Failed grading')
+
+                toast.success(`AI suggests: ${data.suggestedGrade}!`)
+                // Proceed with saving the suggested grade
+                await handleMarkGraded(selectedSubForAi, data.suggestedGrade)
+            }
+        } catch (err: any) {
+            toast.error(err.message || 'AI Grading failed.')
+        } finally {
+            setAiGradingId(null)
+            setSelectedSubForAi(null)
+            if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+    }
+
     if (loading) {
         return (
             <div className="flex min-h-screen bg-cosmos-bg star-bg">
@@ -160,6 +215,15 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
                                             <button onClick={() => handleMarkGraded(s, 'A+')} className="p-1 px-1.5 text-xs rounded bg-cosmos-surface border border-cosmos-border text-cosmos-text hover:bg-cosmos-border transition-colors">A+</button>
                                             <button onClick={() => handleMarkGraded(s, 'A')} className="p-1 px-1.5 text-xs rounded bg-cosmos-surface border border-cosmos-border text-cosmos-text hover:bg-cosmos-border transition-colors">A</button>
                                             <button onClick={() => handleMarkGraded(s, 'B')} className="p-1 px-1.5 text-xs rounded bg-cosmos-surface border border-cosmos-border text-cosmos-text hover:bg-cosmos-border transition-colors">B</button>
+                                            <button 
+                                                onClick={() => handleAiGradeClick(s)} 
+                                                disabled={aiGradingId === s.id}
+                                                className="p-1 px-2 text-xs rounded border border-cosmos-blue/30 text-cosmos-blue hover:bg-cosmos-blue/10 transition-colors flex items-center gap-1"
+                                                title="Upload student's test snippet to auto-grade via Gemini Vision"
+                                            >
+                                                {aiGradingId === s.id ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                                                AI Grade
+                                            </button>
                                         </div>
                                         <button onClick={() => handleMarkNotDone(s)} className="btn-secondary text-xs border-cosmos-red/40 text-cosmos-red hover:bg-cosmos-red hover:text-white transition-colors duration-300">
                                             Mark Not Done
@@ -200,6 +264,14 @@ export default function HomeworkDetail({ params }: { params: { id: string } }) {
                         </div>
                     </div>
                 </div>
+                {/* Hidden File Input for AI Grading */}
+                <input 
+                    type="file" 
+                    accept="image/*" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    onChange={handleFileChange} 
+                />
             </main>
         </div>
     )

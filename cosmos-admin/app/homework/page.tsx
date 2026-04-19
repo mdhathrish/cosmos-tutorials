@@ -18,26 +18,39 @@ interface Homework {
     homework_submissions?: { status: string }[]
 }
 
+import { useGlobalContext } from '@/lib/GlobalContext'
+
 export default function HomeworkPage() {
     const supabase = createClient()
+    const { selectedInstituteId, role } = useGlobalContext()
     const [homeworks, setHomeworks] = useState<Homework[]>([])
     const [batches, setBatches] = useState<Batch[]>([])
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
 
     const load = async () => {
-        const { data } = await supabase
+        setLoading(true)
+        let query = supabase
             .from('homework')
             .select('*, batches(batch_name, grade), homework_submissions(status)')
-            .order('due_date', { ascending: true })
+        
+        if (selectedInstituteId !== 'all') {
+            query = query.eq('institute_id', selectedInstituteId)
+        }
+
+        const { data } = await query.order('due_date', { ascending: true })
         setHomeworks(data || [])
         setLoading(false)
     }
 
     useEffect(() => {
         load()
-        supabase.from('batches').select('*').eq('is_active', true).then(({ data }) => setBatches(data || []))
-    }, [])
+        let bQuery = supabase.from('batches').select('*').eq('is_active', true)
+        if (selectedInstituteId !== 'all') {
+            bQuery = bQuery.eq('institute_id', selectedInstituteId)
+        }
+        bQuery.then(({ data }) => setBatches(data || []))
+    }, [selectedInstituteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleDelete = async (id: string) => {
         if (!confirm('Delete this homework?')) return

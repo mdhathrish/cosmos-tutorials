@@ -11,26 +11,47 @@ interface Stats {
   attendanceToday: number
 }
 
+import { useGlobalContext } from '@/lib/GlobalContext'
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({ totalStudents: 0, totalBatches: 0, testsThisMonth: 0, attendanceToday: 0 })
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
+  const { selectedInstituteId } = useGlobalContext()
 
   useEffect(() => {
     async function load() {
+      setLoading(true)
       const today = new Date().toISOString().split('T')[0]
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+      
+      let sQuery = supabase.from('students').select('id', { count: 'exact' }).eq('is_active', true)
+      let bQuery = supabase.from('batches').select('id', { count: 'exact' }).eq('is_active', true)
+      let tQuery = supabase.from('tests').select('id', { count: 'exact' }).gte('test_date', monthStart)
+      let aQuery = supabase.from('attendance_logs').select('id', { count: 'exact' }).eq('log_date', today)
+
+      if (selectedInstituteId !== 'all') {
+        sQuery = sQuery.eq('institute_id', selectedInstituteId)
+        bQuery = bQuery.eq('institute_id', selectedInstituteId)
+        tQuery = tQuery.eq('institute_id', selectedInstituteId)
+        // attendance_logs doesn't have institute_id directly, but we can filter by student's institute_id via join or just handle it if RLS is on.
+        // For simplicity and correctness with the switcher:
+        aQuery = aQuery.filter('student_id', 'in', 
+           supabase.from('students').select('id').eq('institute_id', selectedInstituteId)
+        )
+      }
+
       const [a, b, c, d] = await Promise.all([
-        supabase.from('students').select('id', { count: 'exact' }).eq('is_active', true),
-        supabase.from('batches').select('id', { count: 'exact' }).eq('is_active', true),
-        supabase.from('tests').select('id', { count: 'exact' }).gte('test_date', monthStart),
-        supabase.from('attendance_logs').select('id', { count: 'exact' }).eq('log_date', today),
+        sQuery,
+        bQuery,
+        tQuery,
+        aQuery,
       ])
       setStats({ totalStudents: a.count||0, totalBatches: b.count||0, testsThisMonth: c.count||0, attendanceToday: d.count||0 })
       setLoading(false)
     }
     load()
-  }, [])
+  }, [selectedInstituteId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const statCards = [
     { label: 'Active Students',   value: stats.totalStudents,   icon: Users,        primary: true  },

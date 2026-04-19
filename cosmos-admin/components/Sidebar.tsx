@@ -8,10 +8,11 @@ import {
   CalendarCheck, GraduationCap, Tag, LogOut, Telescope, Menu, X, MessageSquare, CreditCard, Megaphone, Calendar, Users
 } from 'lucide-react'
 import { createClient } from '../lib/supabase'
-
+import { useGlobalContext } from '../lib/GlobalContext'
 
 const navItems = [
   { href: '/dashboard',   icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/institutes',  icon: Telescope,       label: 'Clinics / Centers', superOnly: true },
   { href: '/inbox',       icon: MessageSquare,   label: 'Inbox' },
   { href: '/fees',        icon: CreditCard,      label: 'Fees / Payments' },
   { href: '/notices',     icon: Megaphone,       label: 'Notices Board' },
@@ -23,25 +24,13 @@ const navItems = [
   { href: '/attendance',  icon: CalendarCheck,   label: 'Attendance' },
   { href: '/homework',    icon: BookOpen,        label: 'Homework' },
   { href: '/micro-tags',  icon: Tag,             label: 'Concept Tags' },
-]
+] 
 
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
-  const [role, setRole] = useState<'admin' | 'teacher' | 'parent' | ''>('')
-
-  useEffect(() => {
-    async function loadRole() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data } = await supabase.from('users').select('role').eq('auth_id', user.id).single()
-        if (data) setRole(data.role as any)
-      }
-    }
-    loadRole()
-  }, [])
+  const { role, institutes, selectedInstituteId, setSelectedInstituteId, loading } = useGlobalContext()
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -50,9 +39,9 @@ export default function Sidebar() {
   }
 
   const filteredItems = navItems.filter(item => {
+    if ((item as any).superOnly && role !== 'super_admin') return false;
     if (role === 'teacher') {
-      // Teachers cannot view Fees, Batches, Teachers, and Concept Tags directly
-      return !['/fees', '/batches', '/teachers', '/micro-tags'].includes(item.href)
+      return !['/fees', '/batches', '/teachers', '/micro-tags', '/institutes'].includes(item.href)
     }
     return true
   })
@@ -74,7 +63,6 @@ export default function Sidebar() {
       )}
 
       <aside className={`fixed left-0 top-0 h-screen w-64 bg-white border-r border-cosmos-border flex flex-col z-[80] transition-transform duration-500 ease-out shadow-2xl md:shadow-none ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-      {/* Brand */}
       <div className="p-5 border-b border-cosmos-border">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 flex items-center justify-center shadow-glow-blue rounded-xl overflow-hidden">
@@ -89,7 +77,22 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Nav */}
+      {role === 'super_admin' && (
+        <div className="px-4 py-4 border-b border-cosmos-border bg-cosmos-primary/5">
+           <label className="block text-[10px] font-black text-cosmos-primary uppercase tracking-widest mb-2">Master Scope</label>
+           <select 
+            value={selectedInstituteId} 
+            onChange={(e) => setSelectedInstituteId(e.target.value)}
+            className="w-full bg-white border border-cosmos-border rounded-lg px-2 py-1.5 text-xs text-cosmos-text font-bold focus:outline-none focus:ring-1 focus:ring-cosmos-primary"
+           >
+              <option value="all">All Institutes</option>
+              {institutes.map(inst => (
+                <option key={inst.id} value={inst.id}>{inst.name}</option>
+              ))}
+           </select>
+        </div>
+      )}
+
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {filteredItems.map(({ href, icon: Icon, label }) => (
           <Link
@@ -104,11 +107,16 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
       <div className="p-3 border-t border-cosmos-border">
-        <div className="px-3 py-2 mb-2">
-          <div className="text-[10px] text-cosmos-subtle uppercase tracking-widest">IIT Foundation</div>
-          <div className="text-xs text-cosmos-muted">Grades 8–12 · Hyderabad</div>
+        {role && (
+          <div className="px-3 py-2 mb-2 flex items-center justify-between">
+            <div className="badge-blue text-[10px] py-0.5 px-2 font-black uppercase tracking-tighter">
+              {role.replace('_', ' ')}
+            </div>
+          </div>
+        )}
+        <div className="px-3 py-2 mb-2 text-cosmos-muted text-[10px] uppercase tracking-widest font-bold">
+          IIT Foundation
         </div>
         <button 
           onClick={handleSignOut}
@@ -117,10 +125,8 @@ export default function Sidebar() {
           <LogOut size={15} />
           <span className="text-sm font-medium">Sign Out</span>
         </button>
-
       </div>
       </aside>
     </>
   )
 }
-
