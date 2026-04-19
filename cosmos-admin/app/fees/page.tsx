@@ -96,12 +96,16 @@ export default function FeesDashboard() {
   const handleUpdateUpi = async () => {
     if (!upiId.trim()) return
     setUpdatingUpi(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: userData } = await supabase.from('users').select('institute_id').eq('auth_id', user?.id).single()
+    const targetInstId = userData?.institute_id
+
     const { error } = await supabase
       .from('app_settings')
       .upsert([
-        { key: 'upi_id', value: upiId.trim() },
-        { key: 'upi_payee_name', value: payeeName.trim() }
-      ])
+        { key: 'upi_id', value: upiId.trim(), institute_id: targetInstId },
+        { key: 'upi_payee_name', value: payeeName.trim(), institute_id: targetInstId }
+      ], { onConflict: 'key,institute_id' })
     if (error) toast.error('Failed to update settings')
     else toast.success('Payment settings updated!')
     setUpdatingUpi(false)
@@ -129,7 +133,7 @@ export default function FeesDashboard() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg star-bg">
       <Sidebar />
-      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
+      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-24 md:pt-12">
         
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>

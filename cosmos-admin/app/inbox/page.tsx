@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { MessageSquare, Send, Loader2, User, ArrowLeft } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { useGlobalContext } from '@/lib/GlobalContext'
 
 interface Conversation {
   id: string
@@ -29,6 +30,7 @@ interface Message {
 
 export default function InboxPage() {
   const supabase = createClient()
+  const { selectedInstituteId } = useGlobalContext()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -38,7 +40,9 @@ export default function InboxPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    loadConversations()
+    if (selectedInstituteId) {
+        loadConversations()
+    }
 
     // Subscribe to general conversation updates or messages for alerting
     const listChannel = supabase
@@ -87,13 +91,19 @@ export default function InboxPage() {
   }, [messages])
 
   async function loadConversations() {
-    const { data, error } = await supabase
+    let query = supabase
       .from('conversations')
       .select(`
         *,
         students ( full_name )
       `)
       .order('updated_at', { ascending: false })
+    
+    if (selectedInstituteId !== 'all') {
+        query = query.eq('institute_id', selectedInstituteId)
+    }
+
+    const { data, error } = await query
     
     if (!error && data) setConversations(data as any)
     setLoading(false)
@@ -153,12 +163,12 @@ export default function InboxPage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg">
       <Sidebar />
-      <main className="md:ml-64 flex-1 flex h-screen md:h-screen pt-20 md:pt-0 max-w-[100vw]">
+      <main className="md:ml-64 flex-1 flex h-screen md:h-screen pt-16 md:pt-0 max-w-[100vw]">
         {/* Left Side: Conversation List */}
         <div className={`w-full md:w-80 border-r border-cosmos-border flex flex-col bg-white ${selectedConv ? 'hidden md:flex' : 'flex'}`}>
-          <div className="p-4 border-b border-cosmos-border">
+          <div className="p-5 border-b border-cosmos-border bg-white sticky top-0 z-10">
             <h1 className="font-display text-lg font-bold text-cosmos-text">Messages</h1>
-            <p className="text-cosmos-muted text-xs">Parent-Teacher Inbox</p>
+            <p className="text-cosmos-muted text-[11px]">Parent-Teacher Helpdesk</p>
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-cosmos-border/50">

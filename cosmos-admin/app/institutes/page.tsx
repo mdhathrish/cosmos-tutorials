@@ -5,11 +5,22 @@ import Sidebar from '@/components/Sidebar'
 import { Plus, Building2, Phone, MapPin, Loader2, MoreVertical, ShieldCheck, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { useRouter } from 'next/navigation'
+import { useGlobalContext } from '@/lib/GlobalContext'
 
 export default function InstitutesPage() {
     const supabase = createClient()
+    const router = useRouter()
+    const { role } = useGlobalContext()
     const [institutes, setInstitutes] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        // Strict Route Protection: Only Super Admins can access this page
+        if (role && role !== 'super_admin') {
+            router.push('/dashboard')
+        }
+    }, [role, router])
 
     const load = async () => {
         setLoading(true)
@@ -20,24 +31,30 @@ export default function InstitutesPage() {
             .order('created_at', { ascending: false })
         
         if (error) {
+            console.error("Fetch error:", error)
             toast.error(error.message)
         } else if (data) {
-            // Fetch secure counts via RPC to preserve strict data privacy
-            const { data: metrics, error: metricsError } = await supabase.rpc('get_institute_metrics')
-            
-            if (metricsError) {
-                console.error("Failed to fetch metrics:", metricsError)
-            }
-
-            const enriched = data.map(inst => {
-                const m = metrics?.find((x: any) => x.institute_id === inst.id)
-                return { 
-                    ...inst, 
-                    student_count: m?.student_count || 0, 
-                    batch_count: m?.batch_count || 0 
+            try {
+                // Fetch metrics (Optional, don't crash if it fails)
+                const { data: metrics, error: metricsError } = await supabase.rpc('get_institute_metrics')
+                
+                if (metricsError) {
+                    console.error("Metrics RPC error:", metricsError)
                 }
-            })
-            setInstitutes(enriched)
+
+                const enriched = (data || []).map(inst => {
+                    const m = metrics?.find((x: any) => x.institute_id === inst.id)
+                    return { 
+                        ...inst, 
+                        student_count: m?.student_count || 0, 
+                        batch_count: m?.batch_count || 0 
+                    }
+                })
+                setInstitutes(enriched)
+            } catch (err) {
+                console.error("Processing error:", err)
+                setInstitutes(data || [])
+            }
         }
         setLoading(false)
     }
@@ -59,10 +76,25 @@ export default function InstitutesPage() {
         }
     }
 
+    if (!role) {
+        return (
+            <div className="flex min-h-screen bg-cosmos-bg star-bg">
+                <Sidebar />
+                <main className="md:ml-64 flex-1 flex items-center justify-center">
+                    <Loader2 className="animate-spin text-cosmos-primary" size={32} />
+                </main>
+            </div>
+        )
+    }
+
+    if (role !== 'super_admin') {
+        return null // Will redirect in useEffect
+    }
+
     return (
         <div className="flex min-h-screen bg-cosmos-bg star-bg">
             <Sidebar />
-            <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
+            <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-24 md:pt-12">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                     <div>
                         <h1 className="font-display text-3xl font-bold text-cosmos-text tracking-tight">Clinics & Centers</h1>

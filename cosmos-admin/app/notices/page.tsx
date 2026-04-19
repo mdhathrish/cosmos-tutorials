@@ -45,15 +45,23 @@ export default function NoticesPage() {
     setLoading(false)
   }
 
-  const handleSendNotice = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!title.trim() || !content.trim()) return
-    if (selectedInstituteId === 'all') {
-        toast.error('Please select a specific institute to send this notice.')
-        return
-    }
+    const handleSendNotice = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!title.trim() || !content.trim()) return
 
-    setSending(true)
+        // Robust check: If 'all' is selected (usually super admin view), require a specific selection.
+        // But if regular admin, and for some reason context is 'all', we should block or try to find their ID.
+        if (selectedInstituteId === 'all') {
+            toast.error('Please select a specific institute to send this notice.')
+            return
+        }
+
+        if (!selectedInstituteId) {
+            toast.error('Institute ID not found. Please refresh.')
+            return
+        }
+
+        setSending(true)
     try {
       const res = await fetch('/api/send-notice', {
         method: 'POST',
@@ -94,7 +102,7 @@ export default function NoticesPage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg">
       <Sidebar />
-      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
+      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-24 md:pt-12">
         
         <div className="flex items-center justify-between mb-6">
           <div>

@@ -33,7 +33,7 @@ export default function StudentReportPage() {
     // 1. Student Info
     const { data: student } = await supabase
       .from('students')
-      .select('full_name, grade, batches(batch_name)')
+      .select('full_name, grade, batches(batch_name), institutes(name)')
       .eq('id', id)
       .single()
 
@@ -141,7 +141,7 @@ export default function StudentReportPage() {
         
         {/* Header */}
         <div className="text-center border-b pb-8 mb-8 border-neutral-200">
-          <h1 className="font-display text-3xl font-black text-neutral-900 tracking-tight">COSMOS ACADEMY</h1>
+          <h1 className="font-display text-3xl font-black text-neutral-900 tracking-tight">{(data.student as any).institutes?.name || 'COSMOS ACADEMY'}</h1>
           <p className="text-sm font-semibold text-cosmos-primary uppercase tracking-widest mt-1">Academic Report Card</p>
           <p className="text-xs text-neutral-400 mt-2">Generated on {new Date().toLocaleDateString('en-IN')}</p>
         </div>

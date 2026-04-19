@@ -1,0 +1,47 @@
+
+> cosmos-admin@0.1.0 build
+> next build
+
+   ▲ Next.js 14.1.0
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/32) ...
+Fees generation cron error: Dynamic server usage: Page couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+   Generating static pages (8/32) 
+Send reminders cron error: Dynamic server usage: Page couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+ReferenceError: role is not defined
+    at u (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/.next/server/app/dashboard/page.js:1:3718)
+    at nM (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47419)
+    at nN (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64674)
+    at nI (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:46806)
+    at nM (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47570)
+    at nM (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61663)
+    at nN (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64674)
+    at nB (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:67657)
+    at nF (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:66824)
+    at nN (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64990)
+   Generating static pages (16/32) 
+
+Error occurred prerendering page "/dashboard". Read more: https://nextjs.org/docs/messages/prerender-error
+
+ReferenceError: role is not defined
+    at u (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/.next/server/app/dashboard/page.js:1:3718)
+    at nM (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47419)
+    at nN (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64674)
+    at nI (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:46806)
+    at nM (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47570)
+    at nM (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61663)
+    at nN (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64674)
+    at nB (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:67657)
+    at nF (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:66824)
+    at nN (/Users/dhathrishmukkerla/Documents/cosmos-tutorials/cosmos-admin/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64990)
+   Generating static pages (24/32) 
+ ✓ Generating static pages (32/32) 
+
+> Export encountered errors on following paths:
+	/dashboard/page: /dashboard

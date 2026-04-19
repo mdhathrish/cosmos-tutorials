@@ -1,39 +1,80 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
-import { ArrowLeft, Building2, UserPlus, ShieldCheck, Loader2 } from 'lucide-react'
+import { ArrowLeft, Building2, UserPlus, ShieldCheck, Loader2, Upload, Check } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { useGlobalContext } from '@/lib/GlobalContext'
+import { PREDEFINED_THEMES } from '@/lib/themes'
 
 export default function NewInstitutePage() {
     const supabase = createClient()
     const router = useRouter()
+    const { role } = useGlobalContext()
     const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+        if (role && role !== 'super_admin') {
+            router.push('/dashboard')
+        }
+    }, [role, router])
 
     // Form State
     const [instName, setInstName] = useState('')
     const [address, setAddress] = useState('')
     const [phone, setPhone] = useState('')
+    const [themeId, setThemeId] = useState('cosmos-classic')
+    const [logoFile, setLogoFile] = useState<File | null>(null)
+    const [logoPreview, setLogoPreview] = useState<string | null>(null)
     
     // Primary Admin State
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('Welcome@123')
     const [adminName, setAdminName] = useState('')
 
+    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            setLogoFile(file)
+            setLogoPreview(URL.createObjectURL(file))
+        }
+    }
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
 
         try {
-            // 1. Create the Institute entry
+            let logo_url = null
+
+            // 1. Upload Logo if exists
+            if (logoFile) {
+                const fileExt = logoFile.name.split('.').pop()
+                const fileName = `${Math.random()}.${fileExt}`
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('institute_logos')
+                    .upload(fileName, logoFile)
+
+                if (uploadError) throw uploadError
+                
+                const { data: { publicUrl } } = supabase.storage
+                    .from('institute_logos')
+                    .getPublicUrl(fileName)
+                
+                logo_url = publicUrl
+            }
+
+            // 2. Create the Institute entry
             const { data: inst, error: instError } = await supabase
                 .from('institutes')
                 .insert({
                     name: instName,
                     address,
                     contact_phone: phone,
+                    logo_url,
+                    theme_id: themeId,
                     is_active: true
                 })
                 .select()
@@ -41,7 +82,7 @@ export default function NewInstitutePage() {
 
             if (instError) throw new Error(`Institute creation failed: ${instError.message}`)
 
-            // 2. Create the first Admin user via API Proxy (for Service Role bypass)
+            // 3. Create the first Admin user
             const res = await fetch('/api/create-user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -49,7 +90,7 @@ export default function NewInstitutePage() {
                     email: email,
                     password: password,
                     full_name: adminName,
-                    role: 'admin', // Role is center_admin or admin in user_role_check
+                    role: 'admin',
                     institute_id: inst.id
                 })
             })
@@ -66,10 +107,25 @@ export default function NewInstitutePage() {
         }
     }
 
+    if (!role) {
+        return (
+            <div className="flex min-h-screen bg-cosmos-bg star-bg">
+                <Sidebar />
+                <main className="md:ml-64 flex-1 flex items-center justify-center">
+                    <Loader2 className="animate-spin text-cosmos-primary" size={32} />
+                </main>
+            </div>
+        )
+    }
+
+    if (role !== 'super_admin') {
+        return null
+    }
+
     return (
         <div className="flex min-h-screen bg-cosmos-bg star-bg">
             <Sidebar />
-            <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
+            <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-24 md:pt-12">
                 <Link href="/institutes" className="text-cosmos-muted hover:text-cosmos-text text-sm flex items-center gap-1.5 mb-8 transition-colors">
                     <ArrowLeft size={16} /> Back to Institutes
                 </Link>
@@ -81,25 +137,75 @@ export default function NewInstitutePage() {
                     </div>
 
                     <form onSubmit={handleCreate} className="space-y-8 pb-20">
-                        {/* Center Info Section */}
+                        {/* Center Branding Section */}
                         <div className="cosmos-card p-6 border-cosmos-primary/20 bg-cosmos-primary/5">
                             <div className="flex items-center gap-2 mb-6">
                                 <Building2 size={20} className="text-cosmos-primary" />
-                                <h2 className="font-display font-bold text-xl text-cosmos-text">Institute Details</h2>
+                                <h2 className="font-display font-bold text-xl text-cosmos-text">Institute & Branding</h2>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-cosmos-subtle uppercase tracking-wider">Institution Name</label>
-                                    <input required placeholder="E.g. Sri Chaitanya Hyderabad" 
-                                        className="cosmos-input" value={instName} onChange={e => setInstName(e.target.value)} />
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-5">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-cosmos-subtle uppercase tracking-wider">Institution Name</label>
+                                        <input required placeholder="E.g. Sri Chaitanya Hyderabad" 
+                                            className="cosmos-input" value={instName} onChange={e => setInstName(e.target.value)} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-cosmos-subtle uppercase tracking-wider">Phone</label>
+                                            <input placeholder="+91..." className="cosmos-input" value={phone} onChange={e => setPhone(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-cosmos-subtle uppercase tracking-wider">Logo</label>
+                                            <label className="flex items-center justify-center gap-2 p-2.5 bg-white border-2 border-dashed border-cosmos-border rounded-xl cursor-pointer hover:border-cosmos-primary transition-all">
+                                                <Upload size={14} className="text-cosmos-muted" />
+                                                <span className="text-xs text-cosmos-muted font-bold">Upload PNG</span>
+                                                <input type="file" className="hidden" accept="image/png,image/jpeg" onChange={handleLogoChange} />
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-cosmos-subtle uppercase tracking-wider">Physical Address</label>
+                                        <input placeholder="Enter full branch address" className="cosmos-input" value={address} onChange={e => setAddress(e.target.value)} />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-cosmos-subtle uppercase tracking-wider">Contact Phone</label>
-                                    <input placeholder="+91..." className="cosmos-input" value={phone} onChange={e => setPhone(e.target.value)} />
+
+                                <div className="flex flex-col items-center justify-center bg-white/50 rounded-2xl border border-cosmos-border p-4">
+                                    <div className="w-24 h-24 rounded-2xl bg-cosmos-primary/10 flex items-center justify-center overflow-hidden mb-3 shadow-xl">
+                                        {logoPreview ? (
+                                            <img src={logoPreview} alt="Preview" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <Building2 size={40} className="text-cosmos-primary opacity-20" />
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] font-black uppercase text-cosmos-muted tracking-widest">Logo Preview</p>
                                 </div>
-                                <div className="md:col-span-2 space-y-2">
-                                    <label className="text-xs font-bold text-cosmos-subtle uppercase tracking-wider">Physical Address</label>
-                                    <input placeholder="Enter full branch address" className="cosmos-input" value={address} onChange={e => setAddress(e.target.value)} />
+                            </div>
+
+                            {/* Theme Selection */}
+                            <div className="mt-8 pt-8 border-t border-cosmos-border">
+                                <label className="block text-xs font-bold text-cosmos-subtle uppercase tracking-wider mb-4">Choose Brand Theme</label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                                    {PREDEFINED_THEMES.map(t => (
+                                        <button 
+                                            key={t.id}
+                                            type="button"
+                                            onClick={() => setThemeId(t.id)}
+                                            className={`relative group p-1 rounded-xl border-2 transition-all ${themeId === t.id ? 'border-cosmos-primary shadow-lg scale-105' : 'border-transparent hover:border-cosmos-border'}`}
+                                        >
+                                            <div className="h-12 rounded-lg flex flex-col overflow-hidden">
+                                                <div className="flex-1" style={{ backgroundColor: t.primary }} />
+                                                <div className="h-2" style={{ backgroundColor: t.secondary }} />
+                                            </div>
+                                            <div className="mt-1 text-[9px] font-bold text-cosmos-text truncate px-1 uppercase tracking-tighter">{t.name}</div>
+                                            {themeId === t.id && (
+                                                <div className="absolute -top-1.5 -right-1.5 bg-cosmos-primary text-white p-0.5 rounded-full shadow-sm">
+                                                    <Check size={10} />
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         </div>

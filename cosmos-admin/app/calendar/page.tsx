@@ -15,8 +15,11 @@ interface CalendarEvent {
   batches?: { batch_name: string }
 }
 
+import { useGlobalContext } from '@/lib/GlobalContext'
+
 export default function CalendarPage() {
   const supabase = createClient()
+  const { selectedInstituteId } = useGlobalContext()
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [batches, setBatches] = useState<Batch[]>([])
   const [loading, setLoading] = useState(true)
@@ -28,18 +31,30 @@ export default function CalendarPage() {
   })
 
   useEffect(() => {
-    loadData()
-  }, [])
+    if (selectedInstituteId) {
+        loadData()
+    }
+  }, [selectedInstituteId])
 
   async function loadData() {
     setLoading(true)
-    const { data: bData } = await supabase.from('batches').select('*').eq('is_active', true)
+    let bQuery = supabase.from('batches').select('*').eq('is_active', true)
+    if (selectedInstituteId !== 'all') {
+        bQuery = bQuery.eq('institute_id', selectedInstituteId)
+    }
+    const { data: bData } = await bQuery
     if (bData) setBatches(bData)
 
-    const { data: eData } = await supabase
+    let eQuery = supabase
       .from('calendar_events')
       .select('*, batches(batch_name)')
       .order('event_date', { ascending: true })
+    
+    if (selectedInstituteId !== 'all') {
+        eQuery = eQuery.eq('institute_id', selectedInstituteId)
+    }
+
+    const { data: eData } = await eQuery
 
     if (eData) setEvents(eData)
     setLoading(false)
@@ -94,7 +109,7 @@ export default function CalendarPage() {
   return (
     <div className="flex min-h-screen bg-cosmos-bg">
       <Sidebar />
-      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-20 md:pt-8">
+      <main className="md:ml-64 flex-1 p-4 md:p-8 w-full max-w-[100vw] pt-24 md:pt-12">
         
         <div className="flex items-center justify-between mb-6">
           <div>

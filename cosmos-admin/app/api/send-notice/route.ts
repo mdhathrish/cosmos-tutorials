@@ -4,10 +4,10 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
     try {
-        const { title, content } = await req.json()
+        const { title, content, institute_id } = await req.json()
 
-        if (!title || !content) {
-            return NextResponse.json({ error: 'Title and Content are required' }, { status: 400 })
+        if (!title || !content || !institute_id) {
+            return NextResponse.json({ error: 'Title, Content, and Institute ID are required' }, { status: 400 })
         }
 
         const supabaseAdmin = createClient(
@@ -19,17 +19,18 @@ export async function POST(req: NextRequest) {
         // 1. Insert Notice row
         const { data: notice, error: insertError } = await supabaseAdmin
             .from('notices')
-            .insert({ title, content })
+            .insert({ title, content, institute_id })
             .select('*')
             .single()
 
         if (insertError) throw insertError
 
-        // 2. Fetch all parents with push tokens
+        // 2. Fetch parents ONLY from this institute with push tokens
         const { data: users, error: userError } = await supabaseAdmin
             .from('users')
             .select('push_token')
             .eq('role', 'parent')
+            .eq('institute_id', institute_id)
 
         if (userError) throw userError
 

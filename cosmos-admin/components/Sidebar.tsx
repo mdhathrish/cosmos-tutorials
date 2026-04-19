@@ -5,14 +5,15 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, BookOpen, ClipboardList,
-  CalendarCheck, GraduationCap, Tag, LogOut, Telescope, Menu, X, MessageSquare, CreditCard, Megaphone, Calendar, Users
+  CalendarCheck, GraduationCap, Tag, LogOut, Telescope, Menu, X, MessageSquare, CreditCard, Megaphone, Calendar, Users, Headphones, LifeBuoy
 } from 'lucide-react'
 import { createClient } from '../lib/supabase'
 import { useGlobalContext } from '../lib/GlobalContext'
 
 const navItems = [
-  { href: '/dashboard',   icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/institutes',  icon: Telescope,       label: 'Clinics / Centers', superOnly: true },
+  { href: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/institutes',    icon: Telescope,       label: 'Clinics / Centers', superOnly: true },
+  { href: '/support-inbox', icon: LifeBuoy,        label: 'Support Tickets',   superOnly: true },
   { href: '/inbox',       icon: MessageSquare,   label: 'Inbox' },
   { href: '/fees',        icon: CreditCard,      label: 'Fees / Payments' },
   { href: '/notices',     icon: Megaphone,       label: 'Notices Board' },
@@ -24,13 +25,14 @@ const navItems = [
   { href: '/attendance',  icon: CalendarCheck,   label: 'Attendance' },
   { href: '/homework',    icon: BookOpen,        label: 'Homework' },
   { href: '/micro-tags',  icon: Tag,             label: 'Concept Tags' },
+  { href: '/support',     icon: Headphones,      label: 'Help & Support' },
 ] 
 
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
-  const { role, institutes, selectedInstituteId, setSelectedInstituteId, loading } = useGlobalContext()
+  const { role, institutes, currentInstitute, selectedInstituteId, setSelectedInstituteId, loading } = useGlobalContext()
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -40,9 +42,16 @@ export default function Sidebar() {
 
   const filteredItems = navItems.filter(item => {
     if ((item as any).superOnly && role !== 'super_admin') return false;
+    
+    if (role === 'super_admin') {
+      // Super Admin only needs platform-level features
+      return ['/dashboard', '/institutes', '/support-inbox'].includes(item.href);
+    }
+    
     if (role === 'teacher') {
       return !['/fees', '/batches', '/teachers', '/micro-tags', '/institutes'].includes(item.href)
     }
+    
     return true
   })
 
@@ -65,27 +74,35 @@ export default function Sidebar() {
       <aside className={`fixed left-0 top-0 h-screen w-64 bg-white border-r border-cosmos-border flex flex-col z-[80] transition-transform duration-500 ease-out shadow-2xl md:shadow-none ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       <div className="p-5 border-b border-cosmos-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 flex items-center justify-center shadow-glow-blue rounded-xl overflow-hidden">
-            <Image src="/logo.png" alt="Cosmos Logo" width={40} height={40} className="w-full h-full object-cover" />
+          <div className="w-10 h-10 flex items-center justify-center shadow-glow-blue rounded-xl overflow-hidden bg-cosmos-primary/10">
+            {currentInstitute?.logo_url ? (
+              <img src={currentInstitute.logo_url} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <div className="text-cosmos-primary font-black text-lg">
+                {currentInstitute?.name?.[0] || 'C'}
+              </div>
+            )}
           </div>
-          <div>
-            <div className="font-display font-bold text-cosmos-primary text-sm tracking-tight">
-              Cosmos Tutorials
+          <div className="flex-1 min-w-0">
+            <div className="font-display font-bold text-cosmos-primary text-sm tracking-tight truncate">
+              {currentInstitute?.name || 'Cosmos Tutorials'}
             </div>
-            <div className="text-cosmos-muted text-[11px] mt-0.5">Admin · Teacher Portal</div>
+            <div className="text-cosmos-muted text-[11px] mt-0.5 truncate">
+              {role === 'super_admin' ? 'Master Portal' : 'Admin · Teacher Portal'}
+            </div>
           </div>
         </div>
       </div>
 
       {role === 'super_admin' && (
         <div className="px-4 py-4 border-b border-cosmos-border bg-cosmos-primary/5">
-           <label className="block text-[10px] font-black text-cosmos-primary uppercase tracking-widest mb-2">Master Scope</label>
+           <label className="block text-[10px] font-black text-cosmos-primary uppercase tracking-widest mb-2">Center Switcher</label>
            <select 
             value={selectedInstituteId} 
             onChange={(e) => setSelectedInstituteId(e.target.value)}
             className="w-full bg-white border border-cosmos-border rounded-lg px-2 py-1.5 text-xs text-cosmos-text font-bold focus:outline-none focus:ring-1 focus:ring-cosmos-primary"
            >
-              <option value="all">All Institutes</option>
+              <option value="all">Platform Overview</option>
               {institutes.map(inst => (
                 <option key={inst.id} value={inst.id}>{inst.name}</option>
               ))}
@@ -107,23 +124,26 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="p-3 border-t border-cosmos-border">
+      <div className="p-4 border-t border-cosmos-border mt-auto">
         {role && (
-          <div className="px-3 py-2 mb-2 flex items-center justify-between">
+          <div className="px-3 py-2 mb-3 flex items-center justify-between bg-cosmos-bg rounded-xl border border-cosmos-border/50">
             <div className="badge-blue text-[10px] py-0.5 px-2 font-black uppercase tracking-tighter">
               {role.replace('_', ' ')}
             </div>
+            <div className="text-[10px] font-bold text-cosmos-muted uppercase tracking-tighter">
+              Active
+            </div>
           </div>
         )}
-        <div className="px-3 py-2 mb-2 text-cosmos-muted text-[10px] uppercase tracking-widest font-bold">
+        <div className="px-3 py-1 mb-4 text-cosmos-muted text-[10px] uppercase tracking-widest font-black opacity-50">
           IIT Foundation
         </div>
         <button 
           onClick={handleSignOut}
-          className="nav-item w-full text-cosmos-red hover:text-cosmos-red hover:bg-cosmos-red/10"
+          className="nav-item w-full text-cosmos-red hover:text-cosmos-red hover:bg-cosmos-red/10 border border-transparent hover:border-cosmos-red/20 py-2.5"
         >
           <LogOut size={15} />
-          <span className="text-sm font-medium">Sign Out</span>
+          <span className="text-sm font-bold">Sign Out</span>
         </button>
       </div>
       </aside>

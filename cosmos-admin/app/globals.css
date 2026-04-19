@@ -1,4 +1,4 @@
-/* app/globals.css — Cosmos Tutorials · Warm White Primary */
+/* app/globals.css — Cosmos Tutorials · Clean & Premium Design */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -32,103 +32,92 @@
     margin: 0; padding: 0;
     background: var(--cosmos-bg);
     color: var(--cosmos-text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: var(--cosmos-surface); }
-  ::-webkit-scrollbar-thumb { background: var(--cosmos-border); border-radius: 3px; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--cosmos-border); border-radius: 10px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--cosmos-primary); }
 }
 
 @layer components {
   .cosmos-card {
-    @apply bg-cosmos-card border border-cosmos-border rounded-xl p-4;
+    @apply bg-cosmos-card border border-cosmos-border rounded-2xl p-6 transition-all duration-300;
+  }
+  .cosmos-card:hover {
+    @apply border-cosmos-primary/30 shadow-xl shadow-cosmos-primary/5 -translate-y-0.5;
   }
 
-  /* Input — focus ring in warm white */
   .cosmos-input {
-    @apply w-full bg-cosmos-surface border border-cosmos-border rounded-lg px-3 py-2
-           text-cosmos-text placeholder-cosmos-muted font-mono text-sm
-           focus:outline-none focus:ring-2 focus:ring-cosmos-primary/60 focus:border-cosmos-primary/60
-           transition-all duration-150;
+    @apply w-full bg-white border border-cosmos-border rounded-xl px-4 py-2.5
+           text-cosmos-text placeholder-cosmos-muted font-sans text-sm
+           focus:outline-none focus:ring-2 focus:ring-cosmos-primary/40 focus:border-cosmos-primary/40
+           transition-all duration-200 shadow-sm;
   }
 
-  /* Marks input — orange focus (speed cue) */
   .marks-input {
     @apply cosmos-input text-center text-lg font-bold w-20
            focus:ring-2 focus:ring-cosmos-orange focus:border-cosmos-orange;
   }
 
   .btn-primary {
-    @apply bg-cosmos-primary text-white font-bold px-4 py-2 rounded-lg
-           hover:opacity-90 active:scale-95 transition-all duration-150
+    @apply bg-cosmos-primary text-white font-bold px-5 py-2.5 rounded-xl
+           hover:bg-cosmos-navy active:scale-95 transition-all duration-200
            focus:outline-none focus:ring-2 focus:ring-cosmos-primary/50 focus:ring-offset-2
-           focus:ring-offset-cosmos-bg shadow-sm;
-  }
-
-  .btn-orange {
-    @apply bg-cosmos-orange text-white font-semibold px-4 py-2 rounded-lg
-           hover:opacity-90 active:scale-95 transition-all duration-150
-           focus:outline-none focus:ring-2 focus:ring-cosmos-orange/50 focus:ring-offset-2
-           focus:ring-offset-cosmos-bg shadow-sm;
+           focus:ring-offset-cosmos-bg shadow-lg shadow-cosmos-primary/20;
   }
 
   .btn-secondary {
-    @apply bg-white border border-cosmos-border text-cosmos-text font-medium
-           px-4 py-2 rounded-lg hover:bg-cosmos-surface hover:border-cosmos-primary/40
-           active:scale-95 transition-all duration-150 shadow-sm;
+    @apply bg-white border border-cosmos-border text-cosmos-text font-bold
+           px-5 py-2.5 rounded-xl hover:bg-cosmos-surface hover:border-cosmos-primary/40
+           active:scale-95 transition-all duration-200 shadow-sm;
   }
 
-  /* Badges */
-  .badge { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium; }
-  .badge-primary { @apply badge bg-cosmos-primary/10 text-cosmos-primary border border-cosmos-primary/25; }
-  .badge-blue    { @apply badge bg-cosmos-blue/20 text-cosmos-peach border border-cosmos-blue/40; }
-  .badge-orange  { @apply badge bg-cosmos-orange/20 text-cosmos-peach border border-cosmos-orange/40; }
-  .badge-green   { @apply badge bg-cosmos-green/20 text-cosmos-green border border-cosmos-green/30; }
-  .badge-red     { @apply badge bg-cosmos-red/20 text-cosmos-red border border-cosmos-red/30; }
-  .badge-amber   { @apply badge bg-cosmos-amber/20 text-cosmos-lightor border border-cosmos-amber/40; }
-  .badge-cyan    { @apply badge bg-cosmos-cyan/20 text-cosmos-cyan border border-cosmos-cyan/30; }
-  .badge-purple  { @apply badge bg-purple-500/20 text-purple-300 border border-purple-500/30; }
-  .badge-gold    { @apply badge bg-yellow-500/20 text-yellow-300 border border-yellow-500/30; }
+  .badge { 
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter border;
+  }
+  .badge-primary { @apply badge bg-cosmos-primary/10 text-cosmos-primary border-cosmos-primary/20; }
+  .badge-blue    { @apply badge bg-cosmos-blue/10 text-cosmos-blue border-cosmos-blue/20; }
+  .badge-orange  { @apply badge bg-cosmos-orange/10 text-cosmos-orange border-cosmos-orange/20; }
+  .badge-green   { @apply badge bg-cosmos-green/10 text-cosmos-green border-cosmos-green/20; }
+  .badge-red     { @apply badge bg-cosmos-red/10 text-cosmos-red border-cosmos-red/20; }
+  .badge-cyan    { @apply badge bg-cosmos-cyan/10 text-cosmos-cyan border-cosmos-cyan/20; }
+  .badge-purple  { @apply badge bg-purple-100 text-purple-700 border-purple-200; }
+  .badge-gold    { @apply badge bg-yellow-100 text-yellow-700 border-yellow-200; }
 
-  /* Sidebar nav — active uses warm white */
   .nav-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-cosmos-muted
-           hover:bg-cosmos-card hover:text-cosmos-text transition-all duration-150 cursor-pointer;
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-cosmos-muted
+           hover:bg-white hover:text-cosmos-primary hover:shadow-md transition-all duration-200 cursor-pointer border border-transparent mb-1;
   }
   .nav-item.active {
-    @apply bg-cosmos-primary/10 text-cosmos-primary border border-cosmos-primary/20;
+    @apply bg-white text-cosmos-primary border-cosmos-primary/10 font-bold shadow-md;
   }
 
-  /* Table */
   .cosmos-table { @apply w-full text-sm; }
-  .cosmos-table thead tr { @apply border-b border-cosmos-border; }
+  .cosmos-table thead tr { @apply border-b border-cosmos-border bg-cosmos-bg/50; }
   .cosmos-table thead th {
-    @apply text-left py-3 px-4 text-cosmos-muted font-semibold uppercase tracking-wider text-xs;
+    @apply text-left py-4 px-5 text-cosmos-muted font-black uppercase tracking-widest text-[10px];
   }
   .cosmos-table tbody tr {
-    @apply border-b border-cosmos-border/50 hover:bg-cosmos-primary/[0.03] transition-colors;
+    @apply border-b border-cosmos-border/50 hover:bg-cosmos-primary/[0.02] transition-colors;
   }
-  .cosmos-table tbody td { @apply py-3 px-4; }
+  .cosmos-table tbody td { @apply py-4 px-5; }
 
-  /* Background ambience */
   .star-bg {
-    background: transparent;
+    background: radial-gradient(circle at 50% 50%, #f8fafc 0%, #f1f5f9 100%);
   }
 }
 
 kbd {
-  @apply inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono
-         bg-cosmos-surface border border-cosmos-border text-cosmos-muted;
+  @apply inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono
+         bg-cosmos-surface border border-cosmos-border text-cosmos-muted font-bold;
 }
 
-/* Stat card — warm white accent variant */
 .stat-primary {
-  border-color: rgba(250,250,250,0.15);
-  background: rgba(250,250,250,0.04);
+  @apply bg-white border-2 border-cosmos-primary/10 shadow-xl shadow-cosmos-primary/5;
 }
 
-/* Heatmap cells */
 .heat-0 { background: #0A0F20; }
 .heat-1 { background: #1A0800; color: #EF4444; }
 .heat-2 { background: #1F1000; color: #F97316; }
