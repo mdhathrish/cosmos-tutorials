@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, Modal, Platform, Linking, TextInput } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useColors } from '../constants/theme'
+import { useParentContext } from '../lib/ParentContext'
 import { supabase } from '../lib/supabase'
 import { ArrowLeft, CheckCircle2, AlertCircle, UploadCloud, CreditCard, ExternalLink } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
@@ -18,11 +19,11 @@ interface FeeRecord {
 export default function FeesScreen() {
   const Colors = useColors()
   const router = useRouter()
+  const { selectedStudent, institute, loading: ctxLoading } = useParentContext()
   const [records, setRecords] = useState<FeeRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [upiId, setUpiId] = useState('cosmos@oksbi') // Default fallback
-  const [payeeName, setPayeeName] = useState('Cosmos Tutorials') 
-  const [studentId, setStudentId] = useState<string | null>(null)
+  const [upiId, setUpiId] = useState('cosmos@oksbi')
+  const [payeeName, setPayeeName] = useState(institute?.name || 'Academy')
 
   // Payment upload state
   const [selectedRecord, setSelectedRecord] = useState<FeeRecord | null>(null)
@@ -33,65 +34,29 @@ export default function FeesScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null)
   const [showPopup, setShowPopup] = useState(false)
 
-  const UPI_ID = upiId // fallback setup
-
   useEffect(() => {
-    loadStudent()
+    // Fetch dynamic UPI settings
+    supabase.from('app_settings').select('key, value').in('key', ['upi_id', 'upi_payee_name']).then(({ data }) => {
+      if (data) {
+        const id = data.find(d => d.key === 'upi_id')?.value
+        const name = data.find(d => d.key === 'upi_payee_name')?.value
+        if (id) setUpiId(id)
+        if (name) setPayeeName(name)
+      }
+    })
   }, [])
 
-  async function loadStudent() {
-    try {
-      // Fetch dynamic UPI ID and Payee Name
-      supabase.from('app_settings').select('key, value').in('key', ['upi_id', 'upi_payee_name']).then(({ data }) => {
-        if (data) {
-          const id = data.find(d => d.key === 'upi_id')?.value
-          const name = data.find(d => d.key === 'upi_payee_name')?.value
-          if (id) setUpiId(id)
-          if (name !== undefined) setPayeeName(name)
-        }
-      })
+  useEffect(() => {
+    if (!ctxLoading && selectedStudent) loadFeeRecords()
+  }, [ctxLoading, selectedStudent?.id])
 
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-
-      // Map auth_id to local users.id
-      const { data: parentUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_id', session.user.id)
-        .single()
-
-      if (!parentUser) {
-        setLoading(false)
-        return
-      }
-
-      const { data: student } = await supabase
-        .from('students')
-        .select('id')
-        .eq('parent_id', parentUser.id)
-        .eq('is_active', true)
-        .single()
-
-      if (student) {
-        setStudentId(student.id)
-        loadFeeRecords(student.id)
-      } else {
-        setLoading(false)
-      }
-    } catch (error) {
-      console.error('Error loading student for fees:', error)
-      setLoading(false)
-    }
-  }
-
-  async function loadFeeRecords(sId: string) {
-    const { data, error } = await supabase
+  async function loadFeeRecords() {
+    if (!selectedStudent) { setLoading(false); return }
+    const { data } = await supabase
       .from('fee_records')
       .select('*')
-      .eq('student_id', sId)
+      .eq('student_id', selectedStudent.id)
       .order('fee_month', { ascending: false })
-
     if (data) setRecords(data)
     setLoading(false)
   }
@@ -111,14 +76,14 @@ export default function FeesScreen() {
   }
 
   const uploadReceipt = async (base64: string) => {
-    if (!studentId) return
+    if (!selectedStudent) return
     if (!selectedRecord && (!manualMonth || !manualAmount)) return
 
     setUploading(true)
     try {
       const month = selectedRecord ? selectedRecord.fee_month : manualMonth
       const amount = selectedRecord ? selectedRecord.amount : Number(manualAmount)
-      const filePath = `receipt_${studentId}_${month}_${Date.now()}.jpg`
+      const filePath = `receipt_${selectedStudent.id}_${month}_${Date.now()}.jpg`
       
       const { error: uploadError } = await supabase.storage
         .from('payment_receipts')
@@ -138,11 +103,10 @@ export default function FeesScreen() {
 
         if (updateError) throw updateError
       } else {
-        // Upsert manual record
         const { error: insertError } = await supabase
           .from('fee_records')
           .upsert({
-            student_id: studentId,
+            student_id: selectedStudent.id,
             fee_month: month,
             amount: amount,
             status: 'submitted',
@@ -154,7 +118,7 @@ export default function FeesScreen() {
       }
 
       setShowPopup(true)
-      loadFeeRecords(studentId) // Refresh list
+      loadFeeRecords()
     } catch (err: any) {
       Alert.alert('Upload Failed', err.message)
     } finally {

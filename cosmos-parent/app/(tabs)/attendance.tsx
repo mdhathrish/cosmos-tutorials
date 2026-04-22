@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native'
 import { supabase, type AttendanceLog } from '../../lib/supabase'
 import { useColors } from '../../constants/theme'
+import { useParentContext } from '../../lib/ParentContext'
 import { MapPin, CheckCircle, XCircle, Clock, Calendar, ClipboardList } from 'lucide-react-native'
 import Animated, { FadeInDown, FadeIn, FadeInUp } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -12,21 +13,14 @@ export default function AttendanceScreen() {
   const Colors = useColors()
   const insets = useSafeAreaInsets()
   const styles = getStyles(Colors)
+  const { selectedStudent, loading: ctxLoading } = useParentContext()
   const [logs, setLogs] = useState<AttendanceLog[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [stats, setStats] = useState({ present: 0, absent: 0, total: 0 })
 
   const load = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { data: parentUser } = await supabase.from('users').select('id').eq('auth_id', user.id).single()
-    if (!parentUser) return
-
-    const { data: student } = await supabase.from('students').select('id').eq('parent_id', parentUser.id).eq('is_active', true).single()
-    if (!student) return
-
+    if (!selectedStudent) { setLoading(false); return }
     // Get last 30 days
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
@@ -34,7 +28,7 @@ export default function AttendanceScreen() {
     const { data: attendanceLogs } = await supabase
       .from('attendance_logs')
       .select('*')
-      .eq('student_id', student.id)
+      .eq('student_id', selectedStudent.id)
       .gte('log_date', thirtyDaysAgo.toISOString().split('T')[0])
       .order('log_date', { ascending: false })
 
@@ -49,7 +43,7 @@ export default function AttendanceScreen() {
     setRefreshing(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { if (!ctxLoading && selectedStudent) load() }, [ctxLoading, selectedStudent?.id])
 
   const formatTime = (ts: string | null) => {
     if (!ts) return '—'

@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useColors } from '../constants/theme'
 import { View, ActivityIndicator } from 'react-native'
 import { usePushNotifications } from '../hooks/usePushNotifications'
+import { ParentProvider } from '../lib/ParentContext'
 import { 
   useFonts, 
   Outfit_400Regular, 
@@ -67,12 +68,15 @@ export default function RootLayout() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.bg }}>
-      <StatusBar style={Colors.bg === '#030409' ? 'light' : 'dark'} backgroundColor={Colors.bg} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}>
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
-    </View>
+    <ParentProvider>
+      <View style={{ flex: 1, backgroundColor: Colors.bg }}>
+        <StatusBar style={Colors.bg === '#030409' ? 'light' : 'dark'} backgroundColor={Colors.bg} />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bg } }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </View>
+    </ParentProvider>
   )
 }
+

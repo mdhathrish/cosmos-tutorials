@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useColors } from '../constants/theme'
+import { useParentContext } from '../lib/ParentContext'
 import { supabase } from '../lib/supabase'
 import { ArrowLeft, Calendar } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -19,83 +20,44 @@ export default function CalendarScreen() {
   const Colors = useColors()
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { selectedStudent, loading: ctxLoading } = useParentContext()
 
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [studentId, setStudentId] = useState<string | null>(null)
-  const [batchId, setBatchId] = useState<string | null>(null)
 
-  const today = new Date().toISOString().split('T')[0]
-
-  const loadStudentAndEvents = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-
-      const { data: parentUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_id', session.user.id)
-        .single()
-
-      if (!parentUser) {
-        setLoading(false)
-        return
-      }
-
-      const { data: student } = await supabase
-        .from('students')
-        .select('id, batch_id')
-        .eq('parent_id', parentUser.id)
-        .eq('is_active', true)
-        .single()
-
-      if (student) {
-        setStudentId(student.id)
-        setBatchId(student.batch_id)
-        await loadEvents(student.batch_id)
-      } else {
-        setLoading(false)
-      }
-    } catch (error) {
-      console.error('Error loading calendar data:', error)
-      setLoading(false)
-    } finally {
-      setRefreshing(false)
-    }
-  }
-
-  const loadEvents = async (bId: string | null) => {
+  const loadEvents = async () => {
+    if (!selectedStudent) { setLoading(false); return }
     try {
       let query = supabase
         .from('calendar_events')
         .select('*')
+        .eq('institute_id', selectedStudent.institute_id)
         .order('event_date', { ascending: true })
 
-      if (bId) {
-        query = query.or(`batch_id.is.null,batch_id.eq.${bId}`)
+      if (selectedStudent.batch_id) {
+        query = query.or(`batch_id.is.null,batch_id.eq.${selectedStudent.batch_id}`)
       } else {
         query = query.is('batch_id', null)
       }
 
-      const { data, error } = await query
-
+      const { data } = await query
       if (data) setEvents(data)
     } catch (error) {
-      console.error('Error loading events:', error)
+      console.error('[Calendar] Error:', error)
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
 
   useEffect(() => {
-    loadStudentAndEvents()
-  }, [])
+    if (!ctxLoading && selectedStudent) loadEvents()
+  }, [ctxLoading, selectedStudent?.id])
 
   const handleRefresh = () => {
     setRefreshing(true)
-    loadStudentAndEvents()
+    loadEvents()
   }
 
   if (loading) {

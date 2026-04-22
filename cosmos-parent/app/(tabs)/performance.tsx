@@ -7,6 +7,7 @@ import {
 } from 'react-native'
 import { supabase, type ConceptPerformance } from '../../lib/supabase'
 import { useColors, getHeatColor } from '../../constants/theme'
+import { useParentContext } from '../../lib/ParentContext'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Activity, Target, Zap, ChevronRight } from 'lucide-react-native'
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated'
@@ -24,11 +25,11 @@ interface GroupedPerformance {
   const Colors = useColors()
   const insets = useSafeAreaInsets()
   const styles = useMemo(() => getStyles(Colors), [Colors])
+  const { selectedStudent, loading: ctxLoading } = useParentContext()
   
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null)
-  const [studentMetadata, setStudentMetadata] = useState<{ id: string; name: string } | null>(null)
   
   // Performance States
   const [allPerf, setAllPerf] = useState<ConceptPerformance[]>([])
@@ -59,27 +60,17 @@ interface GroupedPerformance {
     return totalPossible > 0 ? Math.round((totalObtained / totalPossible) * 100) : 0
   }, [allPerf])
 
-  // Split load into two: initial bootstrapping and contextual adjustments
   const initialize = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { data: parentUser } = await supabase.from('users').select('id').eq('auth_id', user.id).single()
-    if (!parentUser) return
-
-    const { data: student } = await supabase.from('students').select('id, full_name').eq('parent_id', parentUser.id).eq('is_active', true).single()
-    if (!student) return
-
-    setStudentMetadata({ id: student.id, name: student.full_name })
+    if (!selectedStudent) { setLoading(false); return }
 
     // 1. Fetch available tests
-    const { data: scoreData } = await supabase.from('student_scores').select('test_id, tests(id, test_name, test_date)').eq('student_id', student.id)
+    const { data: scoreData } = await supabase.from('student_scores').select('test_id, tests(id, test_name, test_date)').eq('student_id', selectedStudent.id)
     const uniqueTestsMap: { [id: string]: any } = {}
     scoreData?.forEach((s: any) => { if (s.tests && !uniqueTestsMap[s.tests.id]) uniqueTestsMap[s.tests.id] = s.tests })
     setTests(Object.values(uniqueTestsMap).sort((a: any, b: any) => new Date(b.test_date).getTime() - new Date(a.test_date).getTime()))
 
     // 2. Fetch overall performance data
-    const { data: overallData } = await supabase.from('student_concept_performance').select('*').eq('student_id', student.id).order('subject')
+    const { data: overallData } = await supabase.from('student_concept_performance').select('*').eq('student_id', selectedStudent.id).order('subject')
     const overall = overallData || []
     setAllPerf(overall)
     
@@ -90,10 +81,10 @@ interface GroupedPerformance {
 
     setLoading(false)
     setRefreshing(false)
-  }, [selectedSubject])
+  }, [selectedStudent?.id, selectedSubject])
 
   const fetchInsights = useCallback(async (testId: string) => {
-    if (!studentMetadata) return
+    if (!selectedStudent) return
     let focusPerf = allPerf
 
     if (testId !== 'all') {
@@ -103,7 +94,7 @@ interface GroupedPerformance {
         const { data: testScores } = await supabase
           .from('student_scores')
           .select('marks_obtained, is_correct, question_id, test_questions(max_marks, micro_tags(id, subject, chapter, concept_name))')
-          .eq('student_id', studentMetadata.id)
+          .eq('student_id', selectedStudent.id)
           .eq('test_id', testId)
 
         if (testScores) {
@@ -124,7 +115,7 @@ interface GroupedPerformance {
             conceptMap[key].total_possible += q.max_marks || 1
           })
           const testResults = Object.values(conceptMap).map(c => ({
-            ...c, student_id: studentMetadata.id, full_path: `${c.subject} > ${c.chapter} > ${c.concept_name}`,
+            ...c, student_id: selectedStudent.id, full_path: `${c.subject} > ${c.chapter} > ${c.concept_name}`,
             percentage_score: Math.round((c.total_obtained / c.total_possible) * 100)
           })) as ConceptPerformance[]
           
@@ -137,10 +128,10 @@ interface GroupedPerformance {
     const lacking = focusPerf.filter(p => p.percentage_score < 60).sort((a,b) => a.percentage_score - b.percentage_score).slice(0, 3)
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setLackingConcepts(lacking)
-  }, [studentMetadata, allPerf, testCache])
+  }, [selectedStudent?.id, allPerf, testCache])
 
-  useEffect(() => { initialize() }, [])
-  useEffect(() => { fetchInsights(selectedTestId) }, [selectedTestId, studentMetadata])
+  useEffect(() => { if (!ctxLoading && selectedStudent) initialize() }, [ctxLoading, selectedStudent?.id])
+  useEffect(() => { fetchInsights(selectedTestId) }, [selectedTestId, selectedStudent?.id])
 
   const subjects = useMemo(() => grouped.map(g => g.subject), [grouped])
   const activeGroup = useMemo(() => grouped.find(g => g.subject === selectedSubject), [grouped, selectedSubject])
@@ -167,7 +158,7 @@ interface GroupedPerformance {
             <Activity color={Colors.primary} size={24} strokeWidth={2.5} />
           </View>
           <Text style={styles.title}>Skill Matrix</Text>
-          <Text style={styles.subtitle}>{(studentMetadata?.name || 'Student').split(' ')[0]}&apos;s micro-concept mastery</Text>
+          <Text style={styles.subtitle}>{(selectedStudent?.full_name || 'Student').split(' ')[0]}&apos;s micro-concept mastery</Text>
         </View>
 
         <Animated.View entering={FadeInDown.duration(600).springify()}>

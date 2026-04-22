@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useColors } from '../constants/theme'
+import { useParentContext } from '../lib/ParentContext'
 import { supabase } from '../lib/supabase'
 import { ArrowLeft, Megaphone } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -18,21 +19,24 @@ export default function NoticesScreen() {
   const Colors = useColors()
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { selectedStudent, loading: ctxLoading } = useParentContext()
   
   const [notices, setNotices] = useState<Notice[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const loadNotices = async () => {
+    if (!selectedStudent) { setLoading(false); return }
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('notices')
         .select('*')
+        .eq('institute_id', selectedStudent.institute_id)
         .order('created_at', { ascending: false })
 
       if (data) setNotices(data)
     } catch (error) {
-      console.error('Error loading notices:', error)
+      console.error('[Notices] Error:', error)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -40,8 +44,8 @@ export default function NoticesScreen() {
   }
 
   useEffect(() => {
-    loadNotices()
-  }, [])
+    if (!ctxLoading && selectedStudent) loadNotices()
+  }, [ctxLoading, selectedStudent?.id])
 
   if (loading) {
     return (

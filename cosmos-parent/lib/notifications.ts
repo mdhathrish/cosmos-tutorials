@@ -58,7 +58,8 @@ export async function registerForPushNotifications(userId: string): Promise<stri
 export function buildAttendanceNotification(
   studentName: string,
   type: 'check_in' | 'check_out',
-  time: string
+  time: string,
+  instituteName: string = 'the center'
 ): any {
   const timeStr = new Date(time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
   return {
@@ -66,8 +67,8 @@ export function buildAttendanceNotification(
       ? `✅ ${studentName} has arrived`
       : `🏠 ${studentName} has left`,
     body: type === 'check_in'
-      ? `Checked in at Cosmos Tutorials at ${timeStr}`
-      : `Checked out from Cosmos Tutorials at ${timeStr}`,
+      ? `Checked in at ${instituteName} at ${timeStr}`
+      : `Checked out from ${instituteName} at ${timeStr}`,
     data: { type, studentName, time },
     sound: 'default',
   }

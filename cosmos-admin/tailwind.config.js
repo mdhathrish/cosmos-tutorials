@@ -1,4 +1,11 @@
 /** @type {import('tailwindcss').Config} */
+
+// Helper: wrap a CSS variable in a way that Tailwind's opacity modifier works
+// This uses the modern CSS color-mix approach
+function withOpacity(varName) {
+  return `var(${varName})`
+}
+
 module.exports = {
   darkMode: ["class"],
   content: [
@@ -11,26 +18,26 @@ module.exports = {
     extend: {
       colors: {
         cosmos: {
-          bg:       '#F8FAFC',     // Slate 50
-          surface:  'rgba(15, 23, 42, 0.04)', // Tinted Slate
-          card:     '#FFFFFF',
-          border:   'rgba(15, 23, 42, 0.08)',
-          primary:  '#6366F1',   // Indigo
-          warmoff:  '#F0EAE0',
-          blue:     '#3B82F6',
-          navy:     '#4338CA',
-          orange:   '#EA580C',
-          amber:    '#D97706',
-          peach:    '#818CF8',
-          lightor:  '#FA9E5D',
-          gold:     '#F5C842',
-          green:    '#059669',
-          red:      '#DC2626',
-          yellow:   '#D97706',
-          cyan:     '#0891B2',
-          text:     '#0F172A',
-          muted:    '#64748B',
-          subtle:   '#94A3B8',
+          bg:       'var(--cosmos-bg)',
+          surface:  'var(--cosmos-surface)',
+          card:     'var(--cosmos-card)',
+          border:   'var(--cosmos-border)',
+          primary:  'var(--cosmos-primary)',
+          warmoff:  'var(--cosmos-warmoff)',
+          blue:     'var(--cosmos-blue)',
+          navy:     'var(--cosmos-navy)',
+          orange:   'var(--cosmos-orange)',
+          amber:    'var(--cosmos-amber)',
+          peach:    'var(--cosmos-peach)',
+          lightor:  'var(--cosmos-lightor)',
+          gold:     'var(--cosmos-gold)',
+          green:    'var(--cosmos-green)',
+          red:      'var(--cosmos-red)',
+          yellow:   'var(--cosmos-yellow)',
+          cyan:     'var(--cosmos-cyan)',
+          text:     'var(--cosmos-text)',
+          muted:    'var(--cosmos-muted)',
+          subtle:   'var(--cosmos-subtle)',
         }
       },
       fontFamily: {

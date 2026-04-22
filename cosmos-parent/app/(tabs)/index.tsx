@@ -4,10 +4,10 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   ActivityIndicator, RefreshControl, Image
 } from 'react-native'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
-import { supabase, type Student, type AttendanceLog } from '../../lib/supabase'
+import { supabase, type AttendanceLog } from '../../lib/supabase'
 import { useColors } from '../../constants/theme'
+import { useParentContext } from '../../lib/ParentContext'
 import { LinearGradient } from 'expo-linear-gradient'
 import { LogOut, Clock, XCircle, CheckCircle, Flame, AlertTriangle, CreditCard, Megaphone } from 'lucide-react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
@@ -18,85 +18,52 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets()
   const styles = getStyles(Colors)
   const router = useRouter()
+  const { parentUser, selectedStudent: student, institute, loading: ctxLoading } = useParentContext()
 
-  const [student, setStudent] = useState<Student | null>(null)
   const [todayLog, setTodayLog] = useState<AttendanceLog | null>(null)
   const [recentLogs, setRecentLogs] = useState<AttendanceLog[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [userName, setUserName] = useState('')
   const [pendingFee, setPendingFee] = useState(false)
   const [notices, setNotices] = useState<{ id: string, title: string, content: string, created_at: string }[]>([])
   const [events, setEvents] = useState<{ id: string; title: string; event_type: string; event_date: string; description: string | null }[]>([])
 
   const today = new Date().toISOString().split('T')[0]
+  const userName = parentUser?.full_name || ''
 
   const load = async () => {
+    if (!student) { setLoading(false); return }
     try {
-      // 1. Load cached data for instant UI
-      const cachedName = await AsyncStorage.getItem('user_name')
-      const cachedStudent = await AsyncStorage.getItem('student_profile')
-      if (cachedName) setUserName(cachedName)
-      if (cachedStudent) {
-        setStudent(JSON.parse(cachedStudent))
-        setLoading(false) // Show partial UI if we have a student
-      }
+      const instId = student.institute_id
+      // Parallelize all data fetches
+      const [
+        { data: todayAttendance },
+        { data: recentAttendance },
+        { data: pendingFees },
+        { data: noticeData },
+        { data: eventData }
+      ] = await Promise.all([
+        supabase.from('attendance_logs').select('*').eq('student_id', student.id).eq('log_date', today).single(),
+        supabase.from('attendance_logs').select('*').eq('student_id', student.id).gte('log_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]).order('log_date', { ascending: false }),
+        supabase.from('fee_records').select('id').eq('student_id', student.id).eq('status', 'pending'),
+        supabase.from('notices').select('*').eq('institute_id', instId).order('created_at', { ascending: false }).limit(3),
+        supabase.from('calendar_events').select('*').eq('institute_id', instId).or(`batch_id.is.null,batch_id.eq.${student.batch_id}`).gte('event_date', today).order('event_date', { ascending: true }).limit(3)
+      ])
 
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: parentUser } = await supabase
-        .from('users')
-        .select('id, full_name')
-        .eq('auth_id', user.id)
-        .single()
-
-      if (!parentUser) return
-      setUserName(parentUser.full_name)
-      AsyncStorage.setItem('user_name', parentUser.full_name)
-
-      const { data: studentData } = await supabase
-        .from('students')
-        .select('*, batches(batch_name, subject, timing_start, timing_end)')
-        .eq('parent_id', parentUser.id)
-        .eq('is_active', true)
-        .single()
-
-      if (studentData) {
-        setStudent(studentData)
-        AsyncStorage.setItem('student_profile', JSON.stringify(studentData))
-        setLoading(false)
-
-        // Parallelize all remaining data fetches
-        const [
-          { data: todayAttendance },
-          { data: recentAttendance },
-          { data: pendingFees },
-          { data: noticeData },
-          { data: eventData }
-        ] = await Promise.all([
-          supabase.from('attendance_logs').select('*').eq('student_id', studentData.id).eq('log_date', today).single(),
-          supabase.from('attendance_logs').select('*').eq('student_id', studentData.id).gte('log_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]).order('log_date', { ascending: false }),
-          supabase.from('fee_records').select('id').eq('student_id', studentData.id).eq('status', 'pending'),
-          supabase.from('notices').select('*').order('created_at', { ascending: false }).limit(3),
-          supabase.from('calendar_events').select('*').or(`batch_id.is.null,batch_id.eq.${studentData.batch_id}`).gte('event_date', today).order('event_date', { ascending: true }).limit(3)
-        ])
-
-        if (todayAttendance) setTodayLog(todayAttendance)
-        setRecentLogs(recentAttendance || [])
-        setPendingFee(pendingFees && pendingFees.length > 0)
-        if (noticeData) setNotices(noticeData)
-        if (eventData) setEvents(eventData)
-      }
+      if (todayAttendance) setTodayLog(todayAttendance)
+      setRecentLogs(recentAttendance || [])
+      setPendingFee(pendingFees && pendingFees.length > 0)
+      if (noticeData) setNotices(noticeData)
+      if (eventData) setEvents(eventData)
     } catch (error) {
-      console.error('Error loading home data:', error)
+      console.error('[Home] Error loading data:', error)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { if (!ctxLoading && student) load() }, [ctxLoading, student?.id])
 
   useEffect(() => {
     if (!student) return
@@ -125,7 +92,7 @@ export default function HomeScreen() {
     greetingHour >= 17 && greetingHour < 21 ? 'Good evening' : 'Good night'
 
 
-  if (loading) {
+  if (loading || ctxLoading) {
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator color={Colors.primary} size="large" />
@@ -135,12 +102,16 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Fixed Header outside ScrollView prevents Notch bleed overlapping */}
+      {/* Fixed Header — dynamic institute branding */}
       <View style={styles.header}>
         <View style={styles.headerBrand}>
-          <Image source={require('../../assets/icon.png')} style={styles.logoImage} />
+          {institute?.logo_url ? (
+            <Image source={{ uri: institute.logo_url }} style={styles.logoImage} />
+          ) : (
+            <Image source={require('../../assets/icon.png')} style={styles.logoImage} />
+          )}
           <View>
-            <Text style={styles.brandName}>Cosmos</Text>
+            <Text style={styles.brandName}>{institute?.name || 'Academy'}</Text>
             <Text style={styles.brandSub}>Parent Portal</Text>
           </View>
         </View>

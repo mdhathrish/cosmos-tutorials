@@ -1,11 +1,23 @@
+'use client'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase'
+import { useGlobalContext } from '@/lib/GlobalContext'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import Sidebar from '@/components/Sidebar'
+import { toast } from 'react-hot-toast'
 import { PREDEFINED_THEMES } from '@/lib/themes'
-import { Check, Upload } from 'lucide-react'
+import {
+    ArrowLeft, Building2, Users, Mail, Phone, MapPin, Clock,
+    Pencil, ShieldAlert, ShieldCheck, ExternalLink, AlertTriangle,
+    Loader2, Eye, EyeOff, Check, Upload
+} from 'lucide-react'
 
 export default function InstituteDetailPage({ params }: { params: { id: string } }) {
     const { id } = params
     const supabase = createClient()
     const router = useRouter()
-    const { role } = useGlobalContext()
+    const { role, refreshInstitutes } = useGlobalContext()
     const [institute, setInstitute] = useState<any>(null)
     const [staff, setStaff] = useState<any[]>([])
     const [studentCount, setStudentCount] = useState(0)
@@ -122,6 +134,11 @@ export default function InstituteDetailPage({ params }: { params: { id: string }
                             </div>
                             <p className="text-cosmos-muted flex items-center gap-2 text-sm italic">
                                 <ShieldAlert size={14} className="text-cosmos-primary" /> Master Management Dashboard
+                                {institute?.institute_code && (
+                                    <span className="not-italic text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full bg-cosmos-primary/10 border border-cosmos-primary/20 text-cosmos-primary ml-2">
+                                        CODE: {institute.institute_code}
+                                    </span>
+                                )}
                             </p>
                         </div>
                     </div>
@@ -259,7 +276,7 @@ export default function InstituteDetailPage({ params }: { params: { id: string }
                 {showInstModal && (
                     <InstituteEditModal 
                         institute={institute}
-                        onClose={() => { setShowInstModal(false); loadData() }}
+                        onClose={() => { setShowInstModal(false); loadData(); refreshInstitutes() }}
                     />
                 )}
             </main>
@@ -373,6 +390,7 @@ function InstituteEditModal({ institute, onClose }: { institute: any, onClose: (
     const supabase = createClient()
     const [form, setForm] = useState({
         name: institute.name || '',
+        institute_code: institute.institute_code || '',
         contact_phone: institute.contact_phone || '',
         address: institute.address || '',
         theme_id: institute.theme_id || 'cosmos-classic'
@@ -442,6 +460,11 @@ function InstituteEditModal({ institute, onClose }: { institute: any, onClose: (
                             <div>
                                 <label className="block text-xs text-cosmos-muted mb-1 font-bold uppercase tracking-wider">Institute Name</label>
                                 <input className="cosmos-input" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-cosmos-muted mb-1 font-bold uppercase tracking-wider">Institute Code <span className="text-cosmos-primary">(shared with parents)</span></label>
+                                <input className="cosmos-input text-center font-bold tracking-widest uppercase" maxLength={20}
+                                    value={form.institute_code} onChange={e => setForm({...form, institute_code: e.target.value.toUpperCase()})} />
                             </div>
                             <div>
                                 <label className="block text-xs text-cosmos-muted mb-1 font-bold uppercase tracking-wider">Contact Phone</label>

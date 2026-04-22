@@ -1,9 +1,9 @@
 // app/(tabs)/homework.tsx
 import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, Linking } from 'react-native'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase, type HomeworkSubmission } from '../../lib/supabase'
 import { useColors } from '../../constants/theme'
+import { useParentContext } from '../../lib/ParentContext'
 import { BookOpen, AlertCircle, Calendar, CheckCircle2, Star, Clock, FileText } from 'lucide-react-native'
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -13,48 +13,31 @@ export default function HomeworkScreen() {
   const Colors = useColors()
   const insets = useSafeAreaInsets()
   const styles = getStyles(Colors)
+  const { selectedStudent, loading: ctxLoading } = useParentContext()
 
   const [submissions, setSubmissions] = useState<HomeworkSubmission[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const load = async () => {
+    if (!selectedStudent) { setLoading(false); return }
     try {
-      // 1. Load cached data for instant UI
-      const cached = await AsyncStorage.getItem('homework_submissions_cache')
-      if (cached) {
-        setSubmissions(JSON.parse(cached))
-        setLoading(false)
-      }
-
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: parentUser } = await supabase.from('users').select('id').eq('auth_id', user.id).single()
-      if (!parentUser) return
-
-      const { data: student } = await supabase.from('students').select('id').eq('parent_id', parentUser.id).eq('is_active', true).single()
-      if (!student) return
-
       const { data, error } = await supabase
         .from('homework_submissions')
         .select('*, homework(title, description, due_date, attachment_url)')
-        .eq('student_id', student.id)
+        .eq('student_id', selectedStudent.id)
 
-      if (error) { console.error('Error fetching homework submissions:', error) }
-      if (data) {
-        setSubmissions(data)
-        AsyncStorage.setItem('homework_submissions_cache', JSON.stringify(data))
-      }
+      if (error) { console.error('[Homework] Error:', error) }
+      if (data) setSubmissions(data)
     } catch (e) {
-      console.warn('Network or cache error', e)
+      console.warn('[Homework] Network error', e)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { if (!ctxLoading && selectedStudent) load() }, [ctxLoading, selectedStudent?.id])
 
   const pending = submissions.filter(s => s.status === 'pending')
   const submitted = submissions.filter(s => s.status !== 'pending')

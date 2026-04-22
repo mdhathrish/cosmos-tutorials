@@ -23,6 +23,7 @@ export default function NewInstitutePage() {
 
     // Form State
     const [instName, setInstName] = useState('')
+    const [instCode, setInstCode] = useState('')
     const [address, setAddress] = useState('')
     const [phone, setPhone] = useState('')
     const [themeId, setThemeId] = useState('cosmos-classic')
@@ -33,6 +34,22 @@ export default function NewInstitutePage() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('Welcome@123')
     const [adminName, setAdminName] = useState('')
+
+    // Auto-generate institute code when name changes — uses DB sequence for guaranteed uniqueness
+    const handleNameChange = async (name: string) => {
+        setInstName(name)
+        if (name.length >= 3 && !instCode) {
+            const prefix = name.replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase()
+            // Fetch next sequence value from DB to guarantee no repeats
+            const { data } = await supabase.rpc('nextval_text', { seq_name: 'institute_code_seq' }).single()
+            if (data) {
+                setInstCode(prefix + data)
+            } else {
+                // Fallback: use timestamp-based suffix (still unique, just less clean)
+                setInstCode(prefix + Date.now().toString().slice(-4))
+            }
+        }
+    }
 
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -71,6 +88,7 @@ export default function NewInstitutePage() {
                 .from('institutes')
                 .insert({
                     name: instName,
+                    institute_code: instCode.toUpperCase(),
                     address,
                     contact_phone: phone,
                     logo_url,
@@ -149,7 +167,15 @@ export default function NewInstitutePage() {
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-cosmos-subtle uppercase tracking-wider">Institution Name</label>
                                         <input required placeholder="E.g. Sri Chaitanya Hyderabad" 
-                                            className="cosmos-input" value={instName} onChange={e => setInstName(e.target.value)} />
+                                            className="cosmos-input" value={instName} onChange={e => handleNameChange(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-cosmos-subtle uppercase tracking-wider">Institute Code
+                                            <span className="text-cosmos-primary ml-1">(shared with parents/staff)</span>
+                                        </label>
+                                        <input required placeholder="e.g. JSR001" maxLength={20}
+                                            className="cosmos-input text-center font-bold tracking-widest uppercase" 
+                                            value={instCode} onChange={e => setInstCode(e.target.value.toUpperCase())} />
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">

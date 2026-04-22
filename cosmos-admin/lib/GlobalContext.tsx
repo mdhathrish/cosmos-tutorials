@@ -11,6 +11,7 @@ interface GlobalContextType {
     institutes: any[]
     currentInstitute: any | null
     loading: boolean
+    refreshInstitutes: () => Promise<void>
 }
 
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined)
@@ -25,8 +26,14 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         async function init() {
+            setLoading(true)
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) {
+                // No user — reset everything to defaults
+                setRole('')
+                setInstitutes([])
+                setCurrentInstitute(null)
+                setSelectedInstituteId('all')
                 setLoading(false)
                 return
             }
@@ -43,6 +50,7 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
                 
                 // If super_admin, fetch all institutes for the switcher
                 if (userData.role === 'super_admin') {
+                    setSelectedInstituteId('all')
                     const { data: insts } = await supabase
                         .from('institutes')
                         .select('*')
@@ -59,11 +67,45 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
                         .single()
                     if (inst) setInstitutes([inst])
                 }
+            } else {
+                setRole('')
+                setInstitutes([])
             }
             setLoading(false)
         }
+
+        // Run on mount
         init()
-    }, [])
+
+        // Re-run when auth state changes (sign in / sign out)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'SIGNED_OUT') {
+                // Immediately clear stale state
+                setRole('')
+                setInstitutes([])
+                setCurrentInstitute(null)
+                setSelectedInstituteId('all')
+                setLoading(false)
+            } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                // Re-initialize with new user's data
+                init()
+            }
+        })
+
+        return () => {
+            subscription.unsubscribe()
+        }
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Refresh institutes list (call after editing institute details/theme)
+    const refreshInstitutes = async () => {
+        const { data: insts } = await supabase
+            .from('institutes')
+            .select('*')
+            .eq('is_deleted', false)
+            .order('name')
+        if (insts) setInstitutes(insts)
+    }
 
     // Apply Theme Dynamically
     useEffect(() => {
@@ -75,16 +117,18 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
         
         setCurrentInstitute(activeInst);
 
-        const theme = getThemeById(activeInst?.theme_id || 'cosmos-indigo');
+        const theme = getThemeById(activeInst?.theme_id || 'cosmos-classic');
         
         // Inject CSS variables safely
         try {
             const root = document.documentElement;
             if (root) {
-                root.style.setProperty('--cosmos-primary', theme.primary || '#4f46e5');
-                root.style.setProperty('--cosmos-blue', theme.secondary || '#6366f1');
+                root.style.setProperty('--cosmos-primary', theme.primary || '#6366F1');
+                root.style.setProperty('--cosmos-blue', theme.secondary || '#3B82F6');
+                // Derive a darker navy from primary for hover states
+                root.style.setProperty('--cosmos-navy', theme.primary || '#4338CA');
                 root.style.setProperty('--cosmos-bg-accent', theme.bg || '#eef2ff');
-                root.style.setProperty('--cosmos-primary-glow', `${theme.primary || '#4f46e5'}20`);
+                root.style.setProperty('--cosmos-primary-glow', `${theme.primary || '#6366F1'}20`);
             }
         } catch (e) {
             console.error('Theme injection failed:', e);
@@ -98,7 +142,8 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
             role, 
             institutes, 
             currentInstitute,
-            loading 
+            loading,
+            refreshInstitutes
         }}>
             {children}
         </GlobalContext.Provider>

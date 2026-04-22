@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, TextInput } from 'react-native'
 import { useColors } from '../../constants/theme'
+import { useParentContext } from '../../lib/ParentContext'
 import { supabase } from '../../lib/supabase'
 import { MessageCircle, Plus, ChevronRight } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 
 interface Conversation {
   id: string
@@ -17,9 +17,9 @@ interface Conversation {
 export default function MessagesScreen() {
   const Colors = useColors()
   const router = useRouter()
+  const { selectedStudent, institute, loading: ctxLoading } = useParentContext()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
-  const [studentId, setStudentId] = useState<string | null>(null)
 
   // New Conversation Modal state
   const [modalVisible, setModalVisible] = useState(false)
@@ -27,75 +27,30 @@ export default function MessagesScreen() {
   const [message, setMessage] = useState('')
   const [creating, setCreating] = useState(false)
 
-  useEffect(() => {
-    loadStudent()
-  }, [])
-
-  async function loadStudent() {
-    try {
-      // Check cache for studentId
-      const cachedStudent = await AsyncStorage.getItem('student_profile')
-      if (cachedStudent) {
-        const s = JSON.parse(cachedStudent)
-        if (s.id) {
-          setStudentId(s.id)
-          loadConversations(s.id)
-        }
-      }
-
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-
-      // Map auth_id to local users.id
-      const { data: parentUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_id', session.user.id)
-        .single()
-
-      if (!parentUser) {
-        setLoading(false)
-        return
-      }
-
-      const { data: student } = await supabase
-        .from('students')
-        .select('id')
-        .eq('parent_id', parentUser.id)
-        .eq('is_active', true)
-        .single()
-
-      if (student) {
-        setStudentId(student.id)
-        if (!cachedStudent) loadConversations(student.id)
-      } else {
-        setLoading(false)
-      }
-    } catch (error) {
-      console.error('Error loading student for messages:', error)
-      setLoading(false)
-    }
-  }
-
-  async function loadConversations(sId: string) {
-    const { data, error } = await supabase
+  async function loadConversations() {
+    if (!selectedStudent) { setLoading(false); return }
+    const { data } = await supabase
       .from('conversations')
       .select('*')
-      .eq('student_id', sId)
+      .eq('student_id', selectedStudent.id)
       .order('updated_at', { ascending: false })
-
     if (data) setConversations(data)
     setLoading(false)
   }
 
+  useEffect(() => {
+    if (!ctxLoading && selectedStudent) loadConversations()
+  }, [ctxLoading, selectedStudent?.id])
+
   const handleStartConversation = async () => {
-    if (!studentId || !message.trim()) return
+    if (!selectedStudent || !message.trim()) return
 
     setCreating(true)
     const { data: conv, error: convErr } = await supabase
       .from('conversations')
       .insert({
-        student_id: studentId,
+        student_id: selectedStudent.id,
+        institute_id: institute?.id || selectedStudent.institute_id,
         category,
         status: 'open'
       })
@@ -106,12 +61,12 @@ export default function MessagesScreen() {
        await supabase.from('messages').insert({
          conversation_id: conv.id,
          sender_role: 'parent',
-         sender_id: studentId, // Using studentId for context
+         sender_id: selectedStudent.id,
          content: message.trim()
        })
        setModalVisible(false)
        setMessage('')
-       loadConversations(studentId) // reload list
+       loadConversations()
     }
     setCreating(false)
   }
