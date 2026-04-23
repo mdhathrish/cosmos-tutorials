@@ -1,23 +1,25 @@
-// app/api/create-parent/route.ts
-import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { getAuthenticatedAdmin } from '@/lib/apiAuth'
+import { UserSchema } from '@/lib/validators'
 
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json()
-        const { email, password, full_name } = body
-
-        console.log('Creating parent:', { email, full_name })
-
-        if (!email || !password) {
-            return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
+        const { user, role, error: authError, supabaseAdmin } = await getAuthenticatedAdmin()
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+        if (role !== 'admin' && role !== 'super_admin') {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
-        const supabaseAdmin = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            { auth: { autoRefreshToken: false, persistSession: false } }
-        )
+        const body = await req.json()
+        const parseResult = UserSchema.safeParse(body)
+        if (!parseResult.success) {
+            return NextResponse.json({ error: parseResult.error.errors[0].message }, { status: 400 })
+        }
+        const { email, password, full_name } = parseResult.data
+
+        console.log('Creating parent:', { email, full_name })
 
         const { data, error } = await supabaseAdmin.auth.admin.createUser({
             email: email.trim().toLowerCase(),

@@ -80,3 +80,4 @@ export default function RootLayout() {
   )
 }
 
+export { ErrorBoundary } from 'expo-router'

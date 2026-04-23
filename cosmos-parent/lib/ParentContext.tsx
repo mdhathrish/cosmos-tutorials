@@ -80,10 +80,16 @@ export function ParentProvider({ children }: { children: React.ReactNode }) {
         if (instId) {
           const { data: instData } = await supabase
             .from('institutes')
-            .select('id, name, logo_url, theme_id, tagline')
+            .select('id, name, logo_url, theme_id, tagline, is_active')
             .eq('id', instId)
             .single()
-          if (instData) setInstitute(instData)
+          if (instData) {
+            if (instData.is_active === false) {
+              await supabase.auth.signOut()
+              return
+            }
+            setInstitute(instData)
+          }
         }
       }
     } catch (e) {

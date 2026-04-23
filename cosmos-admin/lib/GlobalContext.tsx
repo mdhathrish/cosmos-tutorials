@@ -17,7 +17,11 @@ interface GlobalContextType {
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined)
 
 export function GlobalProvider({ children }: { children: React.ReactNode }) {
-    const [selectedInstituteId, setSelectedInstituteId] = useState('all')
+    const [selectedInstituteId, _setSelectedInstituteId] = useState('all')
+    const setSelectedInstituteId = (id: string) => {
+        localStorage.setItem('cosmos_selected_institute', id)
+        _setSelectedInstituteId(id)
+    }
     const [role, setRole] = useState('')
     const [institutes, setInstitutes] = useState<any[]>([])
     const [currentInstitute, setCurrentInstitute] = useState<any | null>(null)
@@ -50,7 +54,8 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
                 
                 // If super_admin, fetch all institutes for the switcher
                 if (userData.role === 'super_admin') {
-                    setSelectedInstituteId('all')
+                    const saved = localStorage.getItem('cosmos_selected_institute')
+                    setSelectedInstituteId(saved || 'all')
                     const { data: insts } = await supabase
                         .from('institutes')
                         .select('*')
@@ -65,7 +70,14 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
                         .select('*')
                         .eq('id', userData.institute_id)
                         .single()
-                    if (inst) setInstitutes([inst])
+                    if (inst) {
+                        if (!inst.is_active && userData.role !== 'super_admin') {
+                            await supabase.auth.signOut()
+                            window.location.href = '/login?error=suspended'
+                            return
+                        }
+                        setInstitutes([inst])
+                    }
                 }
             } else {
                 setRole('')

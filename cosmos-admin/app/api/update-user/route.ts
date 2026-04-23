@@ -1,20 +1,22 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { getAuthenticatedAdmin } from '@/lib/apiAuth'
 
 export async function POST(req: NextRequest) {
     try {
+        const { user, role: adminRole, error: authError, supabaseAdmin } = await getAuthenticatedAdmin()
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+        if (adminRole !== 'admin' && adminRole !== 'super_admin') {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
+
         const body = await req.json()
         const { auth_id, email, password, full_name, role } = body
 
         if (!auth_id) {
             return NextResponse.json({ error: 'auth_id is required' }, { status: 400 })
         }
-
-        const supabaseAdmin = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            { auth: { autoRefreshToken: false, persistSession: false } }
-        )
 
         // 1. Update Auth User (Email/Password)
         const updateData: any = {}
@@ -28,13 +30,13 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
             auth_id,
             updateData
         )
 
-        if (authError) {
-            return NextResponse.json({ error: authError.message }, { status: 400 })
+        if (updateError) {
+            return NextResponse.json({ error: updateError.message }, { status: 400 })
         }
 
         // 2. Sync to public.users table if name or role changed

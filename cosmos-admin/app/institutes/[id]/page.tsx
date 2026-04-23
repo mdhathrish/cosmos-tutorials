@@ -393,7 +393,9 @@ function InstituteEditModal({ institute, onClose }: { institute: any, onClose: (
         institute_code: institute.institute_code || '',
         contact_phone: institute.contact_phone || '',
         address: institute.address || '',
-        theme_id: institute.theme_id || 'cosmos-classic'
+        theme_id: institute.theme_id || 'cosmos-classic',
+        tagline: institute.tagline || '',
+        upi_id: institute.upi_id || ''
     })
     const [logoFile, setLogoFile] = useState<File | null>(null)
     const [logoPreview, setLogoPreview] = useState<string | null>(institute.logo_url || null)
@@ -469,6 +471,14 @@ function InstituteEditModal({ institute, onClose }: { institute: any, onClose: (
                             <div>
                                 <label className="block text-xs text-cosmos-muted mb-1 font-bold uppercase tracking-wider">Contact Phone</label>
                                 <input className="cosmos-input" value={form.contact_phone} onChange={e => setForm({...form, contact_phone: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-cosmos-muted mb-1 font-bold uppercase tracking-wider">Tagline</label>
+                                <input className="cosmos-input" placeholder="e.g. Empowering Students" value={form.tagline} onChange={e => setForm({...form, tagline: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-cosmos-muted mb-1 font-bold uppercase tracking-wider">UPI ID (Fee Collection)</label>
+                                <input className="cosmos-input" placeholder="e.g. name@upi" value={form.upi_id} onChange={e => setForm({...form, upi_id: e.target.value})} />
                             </div>
                             <div>
                                 <label className="block text-xs text-cosmos-muted mb-1 font-bold uppercase tracking-wider">Address</label>

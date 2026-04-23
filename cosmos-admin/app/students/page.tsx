@@ -25,8 +25,14 @@ export default function StudentsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editStudent, setEditStudent] = useState<StudentWithBatch | null>(null)
 
-  const loadStudents = async () => {
+  const [page, setPage] = useState(0)
+  const pageSize = 50
+  const [hasMore, setHasMore] = useState(true)
+
+  const loadStudents = async (reset = false) => {
     setLoading(true)
+    const currentPage = reset ? 0 : page
+
     let query = supabase
       .from('students')
       .select('*, batches(batch_name, grade, subject), users(id, auth_id, email, full_name), institutes(name)')
@@ -36,13 +42,24 @@ export default function StudentsPage() {
       query = query.eq('institute_id', selectedInstituteId)
     }
 
-    const { data } = await query.order('full_name')
-    setStudents(data || [])
+    const { data } = await query.order('full_name').range(currentPage * pageSize, (currentPage + 1) * pageSize - 1)
+    
+    if (data) {
+        setHasMore(data.length === pageSize)
+        if (reset) {
+            setStudents(data)
+        } else {
+            setStudents(prev => [...prev, ...data])
+        }
+        setPage(currentPage + 1)
+    }
     setLoading(false)
   }
 
   useEffect(() => {
-    loadStudents()
+    setPage(0)
+    setHasMore(true)
+    loadStudents(true)
     let batchQuery = supabase.from('batches').select('*').eq('is_active', true)
     if (selectedInstituteId !== 'all') {
       batchQuery = batchQuery.eq('institute_id', selectedInstituteId)
@@ -155,6 +172,13 @@ export default function StudentsPage() {
               </tbody>
             </table>
             {filtered.length === 0 && <div className="text-center py-12 text-cosmos-muted">No students found.</div>}
+            {hasMore && filtered.length > 0 && !search && (
+              <div className="p-4 flex justify-center border-t border-cosmos-border">
+                <button onClick={() => loadStudents(false)} className="btn-secondary text-sm px-6">
+                  Load More
+                </button>
+              </div>
+            )}
           </div>
         )}
 

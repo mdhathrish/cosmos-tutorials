@@ -38,8 +38,8 @@ export default function LoginPage() {
 
     // Derived theme colors
     const theme = institute?.theme_id ? getThemeById(institute.theme_id) : null
-    const primaryColor = theme?.primary || '#4f46e5'
-    const bgAccent = theme?.bg || '#eef2ff'
+    const primaryColor = theme?.primary || getThemeById('cosmos-classic').primary
+    const bgAccent = theme?.bg || getThemeById('cosmos-classic').bg
 
     // Check if there's a saved institute code in localStorage
     useEffect(() => {
@@ -95,8 +95,9 @@ export default function LoginPage() {
         setError('')
         localStorage.removeItem('cosmos_institute_code')
         // Reset CSS variables
-        document.documentElement.style.setProperty('--cosmos-primary', '#4f46e5')
-        document.documentElement.style.setProperty('--cosmos-blue', '#6366f1')
+        const defaultTheme = getThemeById('cosmos-classic')
+        document.documentElement.style.setProperty('--cosmos-primary', defaultTheme.primary)
+        document.documentElement.style.setProperty('--cosmos-blue', defaultTheme.secondary)
     }
 
     const handleLogin = async (e: React.FormEvent) => {

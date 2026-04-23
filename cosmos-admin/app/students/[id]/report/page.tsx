@@ -4,9 +4,22 @@ import { createClient } from '@/lib/supabase'
 import { Loader2, ArrowLeft, Printer } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { getThemeById } from '@/lib/themes'
+
+interface ConceptPerformance {
+  full_path: string
+  total_obtained: number
+  total_possible: number
+  percentage_score: number
+}
 
 interface ReportData {
-  student: { full_name: string; grade: number; batches?: { batch_name: string } }
+  student: { 
+    full_name: string; 
+    grade: number; 
+    batches?: { batch_name: string };
+    institutes?: { name: string; theme_id: string };
+  }
   overallScore: number
   attendance: { present: number; absent: number; percentage: number }
   weakConcepts: { concept_name: string; subject: string; percentage_score: number }[]
@@ -33,7 +46,7 @@ export default function StudentReportPage() {
     // 1. Student Info
     const { data: student } = await supabase
       .from('students')
-      .select('full_name, grade, batches(batch_name), institutes(name)')
+      .select('full_name, grade, batches(batch_name), institutes(name, theme_id)')
       .eq('id', id)
       .single()
 
@@ -58,12 +71,12 @@ export default function StudentReportPage() {
       .eq('student_id', id)
 
     let overallScore = 0
-    let weak: any[] = []
-    let strong: any[] = []
+    let weak: ConceptPerformance[] = []
+    let strong: ConceptPerformance[] = []
 
     if (perf && perf.length > 0) {
-      const totalObtained = perf.reduce((s: number, p: any) => s + p.total_obtained, 0)
-      const totalPossible = perf.reduce((s: number, p: any) => s + p.total_possible, 0)
+      const totalObtained = perf.reduce((s: number, p: ConceptPerformance) => s + p.total_obtained, 0)
+      const totalPossible = perf.reduce((s: number, p: ConceptPerformance) => s + p.total_possible, 0)
       overallScore = totalPossible > 0 ? Math.round((totalObtained / totalPossible) * 100) : 0
 
       weak = perf.filter(p => p.percentage_score < 60).sort((a,b) => a.percentage_score - b.percentage_score).slice(0, 3)
@@ -71,8 +84,13 @@ export default function StudentReportPage() {
     }
 
     if (student) {
+      if (student.institutes?.theme_id) {
+          const theme = getThemeById(student.institutes.theme_id)
+          document.documentElement.style.setProperty('--cosmos-primary', theme.primary)
+          document.documentElement.style.setProperty('--cosmos-blue', theme.secondary)
+      }
       setData({
-        student: student as any,
+        student: student,
         overallScore,
         attendance: { present, absent, percentage: attendPct },
         weakConcepts: weak,
@@ -108,7 +126,7 @@ export default function StudentReportPage() {
         } else {
             setAiSummary(result.summary);
         }
-    } catch (e: any) {
+    } catch (e) {
         alert('Network error during AI generation.');
     } finally {
         setGeneratingAI(false);
@@ -141,7 +159,7 @@ export default function StudentReportPage() {
         
         {/* Header */}
         <div className="text-center border-b pb-8 mb-8 border-neutral-200">
-          <h1 className="font-display text-3xl font-black text-neutral-900 tracking-tight">{(data.student as any).institutes?.name || 'COSMOS ACADEMY'}</h1>
+          <h1 className="font-display text-3xl font-black text-neutral-900 tracking-tight">{data.student.institutes?.name || 'COSMOS ACADEMY'}</h1>
           <p className="text-sm font-semibold text-cosmos-primary uppercase tracking-widest mt-1">Academic Report Card</p>
           <p className="text-xs text-neutral-400 mt-2">Generated on {new Date().toLocaleDateString('en-IN')}</p>
         </div>

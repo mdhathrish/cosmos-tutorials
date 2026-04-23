@@ -25,6 +25,8 @@ export default function NewInstitutePage() {
     const [instName, setInstName] = useState('')
     const [instCode, setInstCode] = useState('')
     const [address, setAddress] = useState('')
+    const [tagline, setTagline] = useState('')
+    const [upiId, setUpiId] = useState('')
     const [phone, setPhone] = useState('')
     const [themeId, setThemeId] = useState('cosmos-classic')
     const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -93,6 +95,8 @@ export default function NewInstitutePage() {
                     contact_phone: phone,
                     logo_url,
                     theme_id: themeId,
+                    tagline: tagline,
+                    upi_id: upiId,
                     is_active: true
                 })
                 .select()
@@ -183,6 +187,14 @@ export default function NewInstitutePage() {
                                             <input placeholder="+91..." className="cosmos-input" value={phone} onChange={e => setPhone(e.target.value)} />
                                         </div>
                                         <div className="space-y-2">
+                                            <label className="text-xs font-bold text-cosmos-subtle uppercase tracking-wider">Tagline</label>
+                                            <input placeholder="Empowering Students" className="cosmos-input" value={tagline} onChange={e => setTagline(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-cosmos-subtle uppercase tracking-wider">UPI ID</label>
+                                            <input placeholder="name@upi" className="cosmos-input" value={upiId} onChange={e => setUpiId(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-2 col-span-2">
                                             <label className="text-xs font-bold text-cosmos-subtle uppercase tracking-wider">Logo</label>
                                             <label className="flex items-center justify-center gap-2 p-2.5 bg-white border-2 border-dashed border-cosmos-border rounded-xl cursor-pointer hover:border-cosmos-primary transition-all">
                                                 <Upload size={14} className="text-cosmos-muted" />

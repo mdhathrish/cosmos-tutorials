@@ -1,20 +1,28 @@
 // app/api/send-notice/route.ts
-import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { getAuthenticatedAdmin } from '@/lib/apiAuth'
+import { rateLimit } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest) {
     try {
+        const { user, role, instituteId, error: authError, supabaseAdmin } = await getAuthenticatedAdmin()
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
+        if (!rateLimit(user.id, 5, 60000)) {
+            return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+        }
+
         const { title, content, institute_id } = await req.json()
+
+        if (role === 'admin' && institute_id !== instituteId) {
+            return NextResponse.json({ error: 'Cannot send notices to other institutes' }, { status: 403 })
+        }
 
         if (!title || !content || !institute_id) {
             return NextResponse.json({ error: 'Title, Content, and Institute ID are required' }, { status: 400 })
         }
-
-        const supabaseAdmin = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            { auth: { autoRefreshToken: false, persistSession: false } }
-        )
 
         // 1. Insert Notice row
         const { data: notice, error: insertError } = await supabaseAdmin

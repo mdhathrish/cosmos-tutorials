@@ -1,30 +1,35 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { getAuthenticatedAdmin } from '@/lib/apiAuth'
 
 export async function POST(req: NextRequest) {
   try {
-    const { full_name, email, password } = await req.json()
+    const { user, role: adminRole, instituteId, error: authError, supabaseAdmin: supabase } = await getAuthenticatedAdmin()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (adminRole !== 'admin' && adminRole !== 'super_admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { full_name, email, password, institute_id } = await req.json()
+
+    if (adminRole === 'admin' && institute_id && instituteId !== institute_id) {
+        return NextResponse.json({ error: 'Cannot create users for other institutes' }, { status: 403 })
+    }
 
     if (!email || !password || !full_name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Use Service Role Key to manage users bypassing client limits
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-
     // 1. Create Auth User
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    const { data: authUser, error: createError } = await supabase.auth.admin.createUser({
       email: email,
       password: password,
       email_confirm: true // Auto confirm
     })
 
-    if (authError) {
-      return NextResponse.json({ error: authError.message }, { status: 400 })
+    if (createError) {
+      return NextResponse.json({ error: createError.message }, { status: 400 })
     }
 
     // 2. Update the row that the trigger automatically creates

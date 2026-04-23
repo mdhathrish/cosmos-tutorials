@@ -9,7 +9,7 @@ import { supabase, type AttendanceLog } from '../../lib/supabase'
 import { useColors } from '../../constants/theme'
 import { useParentContext } from '../../lib/ParentContext'
 import { LinearGradient } from 'expo-linear-gradient'
-import { LogOut, Clock, XCircle, CheckCircle, Flame, AlertTriangle, CreditCard, Megaphone } from 'lucide-react-native'
+import { LogOut, Clock, XCircle, CheckCircle, Flame, AlertTriangle, CreditCard, Megaphone, BookOpen } from 'lucide-react-native'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -18,7 +18,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets()
   const styles = getStyles(Colors)
   const router = useRouter()
-  const { parentUser, selectedStudent: student, institute, loading: ctxLoading } = useParentContext()
+  const { parentUser, students, selectedStudent: student, setSelectedStudentId, institute, loading: ctxLoading } = useParentContext()
 
   const [todayLog, setTodayLog] = useState<AttendanceLog | null>(null)
   const [recentLogs, setRecentLogs] = useState<AttendanceLog[]>([])
@@ -132,6 +132,25 @@ export default function HomeScreen() {
       >
         <Text style={styles.greeting}>{greeting}, {userName.split(' ')[0]}</Text>
 
+        {students && students.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+            {students.map(s => (
+              <TouchableOpacity
+                key={s.id}
+                onPress={() => setSelectedStudentId(s.id)}
+                style={[
+                  styles.switcherBtn,
+                  student?.id === s.id && { borderColor: Colors.primary, backgroundColor: Colors.primary + '1A' }
+                ]}
+              >
+                <Text style={[styles.switcherBtnText, student?.id === s.id && { color: Colors.primary, fontWeight: '700' }]}>
+                  {s.full_name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
         {student && (
           <Animated.View entering={FadeInDown.duration(600).springify()}>
             <LinearGradient colors={Colors.gradientCard} style={styles.studentCard} start={{x: 0, y: 0}} end={{x: 1, y: 1}}>
@@ -196,6 +215,13 @@ export default function HomeScreen() {
                 <Clock size={22} color={Colors.green} />
               </View>
               <Text style={[styles.gridText, { color: Colors.text }]}>Calendar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.gridItem, { backgroundColor: Colors.surface, borderColor: Colors.border }]} onPress={() => router.push('/weekly-reports' as any)}>
+              <View style={[styles.gridIconFrame, { backgroundColor: '#A855F7' + '10' }]}>
+                <BookOpen size={22} color={'#A855F7'} />
+              </View>
+              <Text style={[styles.gridText, { color: Colors.text }]}>AI Reports</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -350,6 +376,21 @@ const getStyles = (Colors: any) => StyleSheet.create({
   signOutBtn: { padding: 10, borderRadius: 12, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
 
   greeting: { fontSize: 28, fontFamily: 'Outfit_700Bold', color: Colors.text, marginVertical: 24, letterSpacing: -0.5 },
+  
+  switcherBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    marginRight: 8,
+  },
+  switcherBtnText: {
+    fontFamily: 'Outfit_500Medium',
+    fontSize: 13,
+    color: Colors.text,
+  },
 
   studentCard: {
     borderRadius: 24, borderWidth: 1,

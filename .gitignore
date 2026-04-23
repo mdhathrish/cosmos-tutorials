@@ -40,8 +40,25 @@ supabase/.temp/
 Thumbs.db
 *.log
 
+# --- Binary / Archives (never commit) ---
+*.apk
+*.aab
+*.ipa
+*.zip
+*.tar.gz
+tsconfig.tsbuildinfo
+
+# --- Debug scripts ---
+*.mjs
+
+# --- Python ---
+.venv/
+__pycache__/
+
 # --- IDE ---
 .idea/
 .vscode/
 *.swp
 *.swo
+.vercel
+.env*.local

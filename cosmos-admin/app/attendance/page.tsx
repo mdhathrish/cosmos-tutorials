@@ -6,7 +6,7 @@ import Sidebar from '@/components/Sidebar'
 import { LogIn, LogOut, AlertCircle, Loader2, ChevronDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-interface Student { id: string; full_name: string; batch_id: string; parent_id: string; is_active: boolean }
+interface Student { id: string; full_name: string; batch_id: string; parent_id: string; is_active: boolean; institute_id?: string }
 interface AttendanceRow { student: Student; log: AttendanceLog | null }
 
 import { useGlobalContext } from '@/lib/GlobalContext'
@@ -51,23 +51,75 @@ export default function AttendancePage() {
       })
   }, [selectedBatch, selectedDate])
 
+  // Helper to send free push notification to parent (₹0 cost via Expo)
+  const sendPushToParent = async (student: Student, title: string, body: string) => {
+    try {
+      const { data: parent } = await supabase.from('users').select('push_token').eq('id', student.parent_id).single()
+      if (parent?.push_token) {
+        fetch('/api/send-push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: parent.push_token, title, body })
+        }).catch(e => console.error('Push send failed:', e))
+      }
+    } catch (e) { /* silent */ }
+  }
+
+  // Helper to send WhatsApp — reserved for critical alerts only (absent + weekly)
+  const sendWhatsApp = async (student: Student, template: string, params: string[]) => {
+    try {
+      const { data: parent } = await supabase.from('users').select('phone').eq('id', student.parent_id).single()
+      if (parent?.phone) {
+        fetch('/api/send-whatsapp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone: parent.phone,
+            template,
+            params,
+            student_id: student.id,
+            institute_id: student.institute_id || selectedInstituteId
+          })
+        }).catch(e => console.error('WhatsApp send failed:', e))
+      }
+    } catch (e) { /* silent fail */ }
+  }
+
   const handleCheckIn = async (studentId: string) => {
     setSaving(studentId)
+    const now = new Date()
     const { data, error } = await supabase.from('attendance_logs')
-      .upsert({ student_id: studentId, log_date: selectedDate, check_in_time: new Date().toISOString(), status: 'present' }, { onConflict: 'student_id,log_date' })
+      .upsert({ student_id: studentId, log_date: selectedDate, check_in_time: now.toISOString(), status: 'present' }, { onConflict: 'student_id,log_date' })
       .select().single()
     if (error) { toast.error(friendlyError(error)); setSaving(null); return }
     setRows(prev => prev.map(r => r.student.id === studentId ? { ...r, log: data } : r))
-    toast.success('Checked in ✓'); setSaving(null)
+    toast.success('Checked in ✓')
+
+    // FREE push notification for check-in (not WhatsApp — saves ~₹0.50/msg)
+    const student = rows.find(r => r.student.id === studentId)?.student
+    if (student) {
+      const time = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      sendPushToParent(student, '✅ Checked In', `${student.full_name} checked in at ${time}`)
+    }
+    setSaving(null)
   }
 
   const handleCheckOut = async (studentId: string, logId: string) => {
     setSaving(studentId)
+    const now = new Date()
     const { data, error } = await supabase.from('attendance_logs')
-      .update({ check_out_time: new Date().toISOString() }).eq('id', logId).select().single()
+      .update({ check_out_time: now.toISOString() }).eq('id', logId).select().single()
     if (error) { toast.error(friendlyError(error)); setSaving(null); return }
     setRows(prev => prev.map(r => r.student.id === studentId ? { ...r, log: data } : r))
-    toast.success('Checked out ✓'); setSaving(null)
+    toast.success('Checked out ✓')
+
+    // FREE push notification for check-out (not WhatsApp — saves ~₹0.50/msg)
+    const student = rows.find(r => r.student.id === studentId)?.student
+    if (student) {
+      const time = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      sendPushToParent(student, '👋 Checked Out', `${student.full_name} checked out at ${time}`)
+    }
+    setSaving(null)
   }
 
   const handleMarkAbsent = async (studentId: string) => {
@@ -79,23 +131,11 @@ export default function AttendancePage() {
     setRows(prev => prev.map(r => r.student.id === studentId ? { ...r, log } : r))
     toast.success('Marked absent')
 
-    // Trigger Push Notification to parent
+    // Absent = CRITICAL → Send BOTH push (free) AND WhatsApp (paid but essential)
     const student = rows.find(r => r.student.id === studentId)?.student;
     if (student?.parent_id) {
-        supabase.from('users').select('push_token').eq('id', student.parent_id).not('push_token', 'is', null).single()
-        .then(({ data: parent }) => {
-            if (parent?.push_token) {
-                fetch('/api/send-push', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        to: parent.push_token,
-                        title: '⚠️ Attendance Alert',
-                        body: `${student.full_name} was marked ABSENT today.`
-                    })
-                }).catch(e => console.error('Absent push failed:', e))
-            }
-        })
+        sendPushToParent(student, '⚠️ Attendance Alert', `${student.full_name} was marked ABSENT today.`)
+        sendWhatsApp(student, 'attendance_alert', [student.full_name, new Date().toLocaleDateString('en-IN')])
     }
     setSaving(null)
   }

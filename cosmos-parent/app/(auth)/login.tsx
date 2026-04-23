@@ -70,12 +70,18 @@ export default function LoginScreen() {
 
     const { data, error } = await supabase
       .from('institutes')
-      .select('id, name, logo_url, theme_id, tagline, institute_code')
+      .select('id, name, logo_url, theme_id, tagline, institute_code, is_active')
       .eq('institute_code', trimmed)
       .single()
 
     if (error || !data) {
       setCodeError('Institute not found. Check the code and try again.')
+      setCodeLoading(false)
+      return
+    }
+
+    if (data.is_active === false) {
+      setCodeError('This institute account is currently suspended. Please contact support.')
       setCodeLoading(false)
       return
     }

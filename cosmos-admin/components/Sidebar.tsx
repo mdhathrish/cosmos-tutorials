@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import {
   LayoutDashboard, BookOpen, ClipboardList,
-  CalendarCheck, GraduationCap, Tag, LogOut, Telescope, Menu, X, MessageSquare, CreditCard, Megaphone, Calendar, Users, Headphones, LifeBuoy
+  CalendarCheck, GraduationCap, Tag, LogOut, Telescope, Menu, X, MessageSquare, CreditCard, Megaphone, Calendar, Users, Headphones, LifeBuoy, IndianRupee, Upload, Clock
 } from 'lucide-react'
 import { createClient } from '../lib/supabase'
 import { useGlobalContext } from '../lib/GlobalContext'
@@ -14,14 +14,17 @@ import { toast } from 'react-hot-toast'
 const navItems = [
   { href: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/institutes',    icon: Telescope,       label: 'Clinics / Centers', superOnly: true },
+  { href: '/billing',       icon: IndianRupee,     label: 'Platform Billing',  superOnly: true },
   { href: '/support-inbox', icon: LifeBuoy,        label: 'Support Tickets',   superOnly: true },
   { href: '/inbox',       icon: MessageSquare,   label: 'Inbox' },
   { href: '/fees',        icon: CreditCard,      label: 'Fees / Payments' },
   { href: '/notices',     icon: Megaphone,       label: 'Notices Board' },
   { href: '/calendar',    icon: Calendar,        label: 'Calendar' },
+  { href: '/timetable',   icon: Clock,           label: 'Timetable' },
   { href: '/batches',     icon: BookOpen,        label: 'Batches' },
   { href: '/teachers',    icon: Users,           label: 'Teachers & Access' },
   { href: '/students',    icon: GraduationCap,   label: 'Students' },
+  { href: '/import',      icon: Upload,          label: 'Import Data' },
   { href: '/marks-entry', icon: ClipboardList,   label: 'Marks Entry' },
   { href: '/attendance',  icon: CalendarCheck,   label: 'Attendance' },
   { href: '/homework',    icon: BookOpen,        label: 'Homework' },
@@ -46,7 +49,7 @@ export default function Sidebar() {
     
     if (role === 'super_admin') {
       // Super Admin only needs platform-level features
-      return ['/dashboard', '/institutes', '/support-inbox'].includes(item.href);
+      return ['/dashboard', '/institutes', '/billing', '/support-inbox'].includes(item.href);
     }
     
     if (role === 'teacher') {

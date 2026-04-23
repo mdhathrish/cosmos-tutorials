@@ -62,7 +62,7 @@ export default function BatchesPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-display text-2xl font-bold text-cosmos-text">Batches</h1>
-            <p className="text-cosmos-muted text-sm mt-0.5">{batches.length} active batches · Max 10 students each</p>
+            <p className="text-cosmos-muted text-sm mt-0.5">{batches.length} active batches · Custom capacity per batch</p>
           </div>
           <button onClick={() => { setEditBatch(null); setShowModal(true) }} className="btn-primary flex items-center gap-2 text-sm">
             <Plus size={15} /> New Batch
@@ -204,7 +204,7 @@ function BatchModal({ batch, onClose, onSaved }: any) {
             <div>
               <label className="block text-xs text-cosmos-muted mb-1">Grade</label>
               <select className="cosmos-input" value={form.grade} onChange={e => setForm(p => ({ ...p, grade: parseInt(e.target.value) }))}>
-                {[8,9,10,11,12].map(g => <option key={g} value={g}>Grade {g}</option>)}
+                {[1,2,3,4,5,6,7,8,9,10,11,12].map(g => <option key={g} value={g}>Grade {g}</option>)}
               </select>
             </div>
             <div>
@@ -238,8 +238,8 @@ function BatchModal({ batch, onClose, onSaved }: any) {
             </div>
           </div>
           <div>
-            <label className="block text-xs text-cosmos-muted mb-1">Capacity (max 10)</label>
-            <input type="number" min={1} max={10} className="cosmos-input w-24" value={form.capacity} onChange={e => setForm(p => ({ ...p, capacity: Math.min(10, parseInt(e.target.value)) }))} />
+             <label className="block text-xs text-cosmos-muted mb-1">Capacity</label>
+             <input type="number" min={1} max={500} className="cosmos-input w-24" value={form.capacity} onChange={e => setForm(p => ({ ...p, capacity: Math.min(500, Math.max(1, parseInt(e.target.value) || 1)) }))} />
           </div>
         </div>
         <div className="p-6 border-t border-cosmos-border flex justify-end gap-3">

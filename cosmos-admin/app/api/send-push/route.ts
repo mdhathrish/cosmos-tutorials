@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { rateLimit } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
     try {
@@ -20,6 +21,10 @@ export async function POST(request: Request) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        if (!rateLimit(user.id, 30, 60000)) {
+            return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
         }
 
         const body = await request.json();
