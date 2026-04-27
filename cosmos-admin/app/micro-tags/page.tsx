@@ -5,6 +5,8 @@ import { friendlyError } from '@/lib/errors'
 import Sidebar from '@/components/Sidebar'
 import { Plus, Loader2, Trash2, Search, Tag } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useGlobalContext } from '@/lib/GlobalContext'
+import { useRouter } from 'next/navigation'
 
 interface MicroTag {
     id: string
@@ -18,11 +20,19 @@ const SUBJECTS = ['Mathematics', 'Physics', 'Chemistry', 'Biology']
 
 export default function MicroTagsPage() {
     const supabase = createClient()
+    const { role } = useGlobalContext()
+    const router = useRouter()
     const [tags, setTags] = useState<MicroTag[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
     const [filterSubject, setFilterSubject] = useState('')
     const [showModal, setShowModal] = useState(false)
+
+    useEffect(() => {
+        if (role && !['super_admin', 'admin', 'teacher'].includes(role)) {
+            router.push('/dashboard')
+        }
+    }, [role, router])
 
     const load = async () => {
         const { data } = await supabase.from('micro_tags').select('*').order('subject').order('chapter').order('concept_name')
