@@ -85,10 +85,11 @@ export default function NewInstitutePage() {
                 logo_url = publicUrl
             }
 
-            // 2. Create the Institute entry
-            const { data: inst, error: instError } = await supabase
-                .from('institutes')
-                .insert({
+            // 2. Create the Institute entry (server-side to bypass RLS)
+            const instRes = await fetch('/api/create-institute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     name: instName,
                     institute_code: instCode.toUpperCase(),
                     address,
@@ -97,12 +98,12 @@ export default function NewInstitutePage() {
                     theme_id: themeId,
                     tagline: tagline,
                     upi_id: upiId,
-                    is_active: true
                 })
-                .select()
-                .single()
+            })
 
-            if (instError) throw new Error(`Institute creation failed: ${instError.message}`)
+            const instData = await instRes.json()
+            if (!instRes.ok) throw new Error(instData.error || 'Institute creation failed')
+            const inst = instData.institute
 
             // 3. Create the first Admin user
             const res = await fetch('/api/create-user', {
